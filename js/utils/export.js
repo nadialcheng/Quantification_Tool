@@ -129,6 +129,11 @@ const ExportUtility = {
           user: formatScore(data.team?.userScore)
         },
         {
+          title: 'Funding Readiness',
+          ai: formatScore(data.funding?.score),
+          user: formatScore(data.funding?.userScore)
+        },
+        {
           title: 'Competitive Risk',
           ai: formatScore(data.competitive.assessment.score),
           user: formatScore(data.competitive.userScore)
@@ -205,6 +210,21 @@ const ExportUtility = {
     doc.text(`• Market Leaders: ${competitive.marketLeaders.length}`, 25, y);
     y += 10;
 
+    // Funding metrics
+    const funding = data.funding?.formatted || {};
+    const fundingConfidence = typeof funding.confidence === 'number'
+      ? Formatters.confidence(funding.confidence)
+      : 'Not available';
+    const totalPeerDeals = funding.totalPeerDeals ?? (funding.peerDeals ? funding.peerDeals.length : 0);
+    doc.text(`• Prior Funding Secured: ${funding.hasPriorFunding ? 'Yes' : 'No'}`, 25, y);
+    y += 7;
+    doc.text(`• Funding Rounds Identified: ${funding.totalFundingRounds ?? 0}`, 25, y);
+    y += 7;
+    doc.text(`• Comparable Market Deals: ${totalPeerDeals}`, 25, y);
+    y += 7;
+    doc.text(`• Funding Data Confidence: ${fundingConfidence}`, 25, y);
+    y += 10;
+
     // Market metrics
     const market = data.market.formatted;
     doc.text(`• Total Addressable Market: ${Formatters.currency(market.primaryMarket.tam)}`, 25, y);
@@ -265,8 +285,27 @@ const ExportUtility = {
     });
     y += 3;
     
+    const fundingFormatted = data.funding?.formatted || {};
+    const fundingConfidenceSummary = typeof fundingFormatted.confidence === 'number'
+      ? Formatters.confidence(fundingFormatted.confidence)
+      : 'Not available';
+    const fundingSummaryLines = [
+      `• Funding Rounds: ${fundingFormatted.totalFundingRounds ?? 0}`,
+      `• Comparable Deals Reviewed: ${fundingFormatted.totalPeerDeals ?? (fundingFormatted.peerDeals ? fundingFormatted.peerDeals.length : 0)}`,
+      `• Funding Confidence: ${fundingConfidenceSummary}`
+    ];
+    fundingSummaryLines.forEach(text => {
+      const lines = doc.splitTextToSize(text, pageWidth - 60);
+      lines.forEach(line => {
+        doc.text(line, 25, y);
+        y += 7;
+      });
+    });
+    y += 3;
+
     const aiScores = [
       data.team?.score,
+      data.funding?.score,
       data.competitive.assessment.score,
       data.market.scoring.score,
       data.iprisk.score
@@ -274,6 +313,7 @@ const ExportUtility = {
 
     const userScores = [
       data.team?.userScore,
+      data.funding?.userScore,
       data.competitive.userScore,
       data.market.userScore,
       data.iprisk.userScore

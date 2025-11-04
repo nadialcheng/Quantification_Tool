@@ -2,8 +2,7 @@
 
 const FundingAPI = {
   config: {
-    // TODO: Replace <funding-node-id> with the actual Stack AI node identifier
-    url: 'https://api.stack-ai.com/inference/v0/run/f913a8b8-144d-47e0-b327-8daa341b575d/<funding-node-id>',
+    url: 'https://api.stack-ai.com/inference/v0/run/f913a8b8-144d-47e0-b327-8daa341b575d/68f0020d7a00704c92fdd7b5',
     headers: {
       'Authorization': 'Bearer e80f3814-a651-4de7-a7ba-8478b7a9047b',
       'Content-Type': 'application/json'
@@ -205,6 +204,10 @@ const FundingAPI = {
       rubricLevel: justification.rubric_level || '',
       summary: justification.evidence_summary || '',
       confidence,
+      confidenceLabel:
+        typeof confidence === 'number'
+          ? `${Math.round(confidence * 100)}%`
+          : null,
       researchTopic: analysis.research_topic || '',
       applicationArea: analysis.application_area || '',
       searchDate: analysis.search_date || null,
@@ -224,15 +227,15 @@ const FundingAPI = {
    */
   getRubricDescription(score) {
     const rubric = {
-      1: 'No trackable funding activity and minimal investor interest in the space.',
-      2: 'Sparse evidence of funding with limited investor momentum.',
-      3: 'Emerging signals of capital availability with modest investor engagement.',
-      4: 'Growing interest with sporadic funding rounds or grants.',
-      5: 'Steady funding availability with multiple comparable deals.',
-      6: 'Strong funding momentum led by reputable investors or grants.',
-      7: 'Highly active funding environment with significant capital deployment.',
-      8: 'Very strong funding signals with marquee investors backing the sector.',
-      9: 'Exceptional funding climate with breakthrough-level capital activity.'
+      1: 'Unreasonable amount of funding needed AND VCs not funding this area',
+      2: 'High amount of funding needed AND VCs not funding this area',
+      3: 'Reasonable/Low amount of funding needed AND VCs not funding this area',
+      4: 'High amount of funding needed AND VCs funding this area decently',
+      5: 'Reasonable amount of funding needed AND VCs funding this area decently',
+      6: 'Low amount of funding needed AND VCs funding this area decently',
+      7: 'High amount of funding needed AND VCs hot in this area',
+      8: 'Reasonable amount of funding needed AND VCs hot in this area',
+      9: 'Low amount of funding needed AND VCs hot in this area'
     };
 
     return rubric[score] || 'No rubric description available';
@@ -241,4 +244,3 @@ const FundingAPI = {
 
 // Make available globally
 window.FundingAPI = FundingAPI;
-

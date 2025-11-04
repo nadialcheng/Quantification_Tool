@@ -5,6 +5,7 @@ class AssessmentView {
     this.currentTab = 'competitive';
     this.currentView = {
       team: 'summary',
+      funding: 'summary',
       competitive: 'summary',
       market: 'summary',
       iprisk: 'summary'
@@ -12,12 +13,14 @@ class AssessmentView {
     this.data = {
       company: null,
       team: null,
+      funding: null,
       competitive: null,
       market: null,
       iprisk: null
     };
     this.userScores = {
       team: { score: 5, justification: '', submitted: false },
+      funding: { score: 5, justification: '', submitted: false },
       competitive: { score: 5, justification: '', submitted: false },
       market: { score: 5, justification: '', submitted: false },
       iprisk: { score: 5, justification: '', submitted: false }
@@ -40,22 +43,24 @@ class AssessmentView {
   cacheElements() {
     this.elements = {
       // Tabs
-		tabs: {
-		  overview: document.querySelector('[data-tab="overview"]'),
-		  team: document.querySelector('[data-tab="team"]'),
-		  competitive: document.querySelector('[data-tab="competitive"]'),
-		  market: document.querySelector('[data-tab="market"]'),
-		  iprisk: document.querySelector('[data-tab="iprisk"]'),
-		  summary: document.querySelector('[data-tab="summary"]')
-		},
-		tabContents: {
-		  overview: document.getElementById('overviewTab'),
-		  team: document.getElementById('teamTab'),
-		  competitive: document.getElementById('competitiveTab'),
-		  market: document.getElementById('marketTab'),
-		  iprisk: document.getElementById('ipriskTab'),
-		  summary: document.getElementById('summaryTab')
-		},
+      tabs: {
+        overview: document.querySelector('[data-tab="overview"]'),
+        team: document.querySelector('[data-tab="team"]'),
+        funding: document.querySelector('[data-tab="funding"]'),
+        competitive: document.querySelector('[data-tab="competitive"]'),
+        market: document.querySelector('[data-tab="market"]'),
+        iprisk: document.querySelector('[data-tab="iprisk"]'),
+        summary: document.querySelector('[data-tab="summary"]')
+      },
+      tabContents: {
+        overview: document.getElementById('overviewTab'),
+        team: document.getElementById('teamTab'),
+        funding: document.getElementById('fundingTab'),
+        competitive: document.getElementById('competitiveTab'),
+        market: document.getElementById('marketTab'),
+        iprisk: document.getElementById('ipriskTab'),
+        summary: document.getElementById('summaryTab')
+      },
       
       // Team elements
       team: {
@@ -68,6 +73,19 @@ class AssessmentView {
         submitBtn: document.getElementById('teamSubmit'),
         evidence: document.getElementById('teamEvidence'),
         scoreBadge: document.getElementById('teamScoreBadge')
+      },
+
+      // Funding elements
+      funding: {
+        aiScore: document.getElementById('fundingAiScore'),
+        userScore: document.getElementById('fundingUserScore'),
+        slider: document.getElementById('fundingSlider'),
+        rubric: document.getElementById('fundingRubric'),
+        justification: document.getElementById('fundingJustification'),
+        warning: document.getElementById('fundingWarning'),
+        submitBtn: document.getElementById('fundingSubmit'),
+        evidence: document.getElementById('fundingEvidence'),
+        scoreBadge: document.getElementById('fundingScoreBadge')
       },
 
       // Competitive elements
@@ -106,14 +124,17 @@ class AssessmentView {
           warning: document.getElementById('ipRiskWarning'),
           submitBtn: document.getElementById('ipRiskSubmit'),
           evidence: document.getElementById('ipRiskEvidence'),
-          scoreBadge: document.getElementById('ipRiskScoreBadge')
-        },
-        
+        scoreBadge: document.getElementById('ipRiskScoreBadge')
+      },
+
         // Summary elements
         summary: {
           teamAi: document.getElementById('summaryTeamAi'),
           teamUser: document.getElementById('summaryTeamUser'),
           teamJustification: document.getElementById('teamJustificationSummary'),
+          fundingAi: document.getElementById('summaryFundingAi'),
+          fundingUser: document.getElementById('summaryFundingUser'),
+          fundingJustification: document.getElementById('fundingJustificationSummary'),
           competitiveAi: document.getElementById('summaryCompetitiveAi'),
           competitiveUser: document.getElementById('summaryCompetitiveUser'),
           competitiveJustification: document.getElementById('competitiveJustificationSummary'),
@@ -140,12 +161,18 @@ class AssessmentView {
     });
     
     // Sliders
-      if (this.elements.team.slider) {
-        this.elements.team.slider.addEventListener('input', (e) => {
-          this.handleSliderChange('team', parseInt(e.target.value));
-        });
-      }
-      
+    if (this.elements.team.slider) {
+      this.elements.team.slider.addEventListener('input', (e) => {
+        this.handleSliderChange('team', parseInt(e.target.value));
+      });
+    }
+    
+    if (this.elements.funding.slider) {
+      this.elements.funding.slider.addEventListener('input', (e) => {
+        this.handleSliderChange('funding', parseInt(e.target.value));
+      });
+    }
+    
       if (this.elements.competitive.slider) {
         this.elements.competitive.slider.addEventListener('input', (e) => {
           this.handleSliderChange('competitive', parseInt(e.target.value));
@@ -165,28 +192,34 @@ class AssessmentView {
       }
       
       // Submit buttons
-      if (this.elements.competitive.submitBtn) {
-        this.elements.competitive.submitBtn.addEventListener('click', () => {
-          this.submitAssessment('competitive');
-        });
-      }
-      
-      if (this.elements.market.submitBtn) {
-        this.elements.market.submitBtn.addEventListener('click', () => {
-          this.submitAssessment('market');
-        });
-      }
-      
-      if (this.elements.iprisk.submitBtn) {
-        this.elements.iprisk.submitBtn.addEventListener('click', () => {
-          this.submitAssessment('iprisk');
-        });
-      }
-      if (this.elements.team.submitBtn) {
-        this.elements.team.submitBtn.addEventListener('click', () => {
-          this.submitAssessment('team');
-        });
-      }
+    if (this.elements.funding.submitBtn) {
+      this.elements.funding.submitBtn.addEventListener('click', () => {
+        this.submitAssessment('funding');
+      });
+    }
+    
+    if (this.elements.competitive.submitBtn) {
+      this.elements.competitive.submitBtn.addEventListener('click', () => {
+        this.submitAssessment('competitive');
+      });
+    }
+    
+    if (this.elements.market.submitBtn) {
+      this.elements.market.submitBtn.addEventListener('click', () => {
+        this.submitAssessment('market');
+      });
+    }
+    
+    if (this.elements.iprisk.submitBtn) {
+      this.elements.iprisk.submitBtn.addEventListener('click', () => {
+        this.submitAssessment('iprisk');
+      });
+    }
+    if (this.elements.team.submitBtn) {
+      this.elements.team.submitBtn.addEventListener('click', () => {
+        this.submitAssessment('team');
+      });
+    }
 	// Continue to Assessment button
 	const continueBtn = document.getElementById('continueToAssessment');
 	if (continueBtn) {
@@ -211,7 +244,7 @@ class AssessmentView {
    * Initialize sliders with default values
    */
   initializeSliders() {
-      ['team', 'competitive', 'market', 'iprisk'].forEach(type => {
+      ['team', 'funding', 'competitive', 'market', 'iprisk'].forEach(type => {
       const slider = this.elements[type].slider;
       const display = this.elements[type].userScore;
       
@@ -229,7 +262,7 @@ class AssessmentView {
   loadResults(results) {
 	  this.data = results;
 	  
-	  ['team', 'competitive', 'market', 'iprisk'].forEach(type => {
+	  ['team', 'funding', 'competitive', 'market', 'iprisk'].forEach(type => {
 		if (this.userScores[type]) {
 		  this.userScores[type].score = 5;
 		  this.userScores[type].justification = '';
@@ -246,6 +279,11 @@ class AssessmentView {
 	  // Load team data
 	  if (results.team) {
 		this.loadTeamData(results.team);
+	  }
+
+	  // Load funding data
+	  if (results.funding) {
+		this.loadFundingData(results.funding);
 	  }
 	  
 	  // Load competitive data
@@ -332,7 +370,7 @@ class AssessmentView {
       const company = Formatters.escapeHTML(entry.company || 'Unknown Company');
       const role = Formatters.escapeHTML(entry.position || '');
       const duration = Formatters.escapeHTML(entry.duration || '');
-      return `<li><strong>${company}</strong>${role ? ` – ${role}` : ''}${duration ? ` <span class="history-duration">(${duration})</span>` : ''}</li>`;
+      return `<li><strong>${company}</strong>${role ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${role}` : ''}${duration ? ` <span class="history-duration">(${duration})</span>` : ''}</li>`;
     };
 
     const formatEducation = (entry) => {
@@ -340,7 +378,7 @@ class AssessmentView {
       const institution = Formatters.escapeHTML(entry.institution || 'Unknown Institution');
       const degree = Formatters.escapeHTML(entry.degree || '');
       const year = Formatters.escapeHTML(entry.year || '');
-      return `<li><strong>${institution}</strong>${degree ? ` – ${degree}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
+      return `<li><strong>${institution}</strong>${degree ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${degree}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
     };
 
     const formatCommercial = (entry) => {
@@ -348,7 +386,7 @@ class AssessmentView {
       const description = Formatters.escapeHTML(entry.description || 'Experience');
       const company = Formatters.escapeHTML(entry.company || '');
       const outcome = Formatters.escapeHTML(entry.outcome || '');
-      return `<li>${description}${company ? ` <strong>(${company})</strong>` : ''}${outcome ? ` – ${outcome}` : ''}</li>`;
+      return `<li>${description}${company ? ` <strong>(${company})</strong>` : ''}${outcome ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${outcome}` : ''}</li>`;
     };
 
     const formatPublication = (entry) => {
@@ -357,7 +395,7 @@ class AssessmentView {
       const venue = Formatters.escapeHTML(entry.venue || '');
       const year = Formatters.escapeHTML(entry.year || '');
       const type = Formatters.escapeHTML(entry.type || '');
-      const details = [venue, year, type].filter(Boolean).join(' • ');
+      const details = [venue, year, type].filter(Boolean).join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ');
       return `<li><strong>${title}</strong>${details ? ` <span class="history-duration">${details}</span>` : ''}</li>`;
     };
 
@@ -366,7 +404,7 @@ class AssessmentView {
       const name = Formatters.escapeHTML(entry.award_name || 'Award');
       const org = Formatters.escapeHTML(entry.organization || '');
       const year = Formatters.escapeHTML(entry.year || '');
-      return `<li><strong>${name}</strong>${org ? ` – ${org}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
+      return `<li><strong>${name}</strong>${org ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${org}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
     };
 
     const summaryHTML = `
@@ -457,6 +495,230 @@ class AssessmentView {
         <div class="content-section">
           <h4>Rubric Alignment</h4>
           <p>${Formatters.escapeHTML(data.rubric || 'No rubric explanation provided.')}</p>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = summaryHTML;
+    container.dataset.summary = summaryHTML;
+    container.dataset.detailed = detailedHTML;
+    container.dataset.sources = sourcesHTML;
+  }
+
+  /**
+   * Load funding data
+   */
+  loadFundingData(data) {
+    const elements = this.elements.funding;
+    if (!elements) return;
+
+    const formatted = data.formatted || {};
+    const aiScore = Number.isInteger(data.score) ? data.score : null;
+
+    if (elements.aiScore) {
+      elements.aiScore.textContent = aiScore !== null ? aiScore : '-';
+    }
+
+    if (elements.scoreBadge) {
+      if (aiScore !== null) {
+        elements.scoreBadge.textContent = aiScore;
+        const scoreData = Formatters.scoreColor(aiScore, 'funding');
+        elements.scoreBadge.style.background = scoreData.color;
+      } else {
+        elements.scoreBadge.textContent = '-';
+        elements.scoreBadge.style.background = 'var(--gray-300)';
+      }
+    }
+
+    const initialScore = aiScore !== null ? aiScore : 5;
+    if (elements.slider) {
+      elements.slider.value = initialScore;
+      this.handleSliderChange('funding', initialScore);
+    } else {
+      this.userScores.funding.score = initialScore;
+    }
+
+    this.displayFundingEvidence(formatted);
+  }
+
+  /**
+   * Display funding evidence content
+   */
+  displayFundingEvidence(data) {
+    const container = this.elements.funding.evidence;
+    if (!container) return;
+
+    const normalizeText = (value) => {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢]/g, '-')
+        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â]/g, '"')
+        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢]/g, "'")
+        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â·]/g, '-')
+        .replace(/[^\x20-\x7E]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const sanitizeText = (value, fallback = '') => {
+      const normalized = normalizeText(value);
+      if (!normalized) return fallback;
+      return Formatters.escapeHTML(normalized);
+    };
+
+    const confidence = (typeof data.confidence === 'number' && !isNaN(data.confidence))
+      ? Formatters.confidence(data.confidence)
+      : 'Not available';
+    const priorFunding = data.hasPriorFunding ? 'Yes' : 'No';
+    const fundingRounds = Array.isArray(data.fundingRounds) ? data.fundingRounds : [];
+    const peerDeals = Array.isArray(data.peerDeals) ? data.peerDeals : [];
+    const fundingDetails = Array.isArray(data.fundingDetails) ? data.fundingDetails : [];
+
+    const formatFundingAmount = (amount, currency = 'USD') => {
+      if (amount === null || amount === undefined) return 'Undisclosed';
+      if (typeof amount === 'number') {
+        return `${Formatters.currency(amount)} ${currency !== 'USD' ? currency : ''}`.trim();
+      }
+      return sanitizeText(amount, 'Undisclosed');
+    };
+
+    const roundsHTML = fundingRounds.length
+      ? `<ul>${fundingRounds.map(round => {
+          const date = Formatters.date(round.date);
+          const amount = sanitizeText(round.amount || 'Undisclosed', 'Undisclosed');
+          const type = sanitizeText(round.type || 'Funding Round', 'Funding Round');
+          const source = sanitizeText(round.source || 'Unknown Source', 'Unknown Source');
+          const link = round.url
+            ? `<a href="${round.url}" target="_blank" rel="noopener">Source</a>`
+            : source;
+          const description = sanitizeText(round.description || '', '');
+          return `<li>
+              <strong>${type}</strong> - ${amount}
+              <div class="meta-line">
+                <span>${date}</span>
+                <span>${link}</span>
+              </div>
+              ${description ? `<p class="subtext">${description}</p>` : ''}
+            </li>`;
+        }).join('')}</ul>`
+      : '<p class="empty-item">No venture funding rounds identified.</p>';
+
+    const dealsHTML = peerDeals.length
+      ? `<ul>${peerDeals.map(deal => {
+          const company = sanitizeText(deal.company || 'Unknown Company', 'Unknown Company');
+          const date = Formatters.date(deal.date);
+          const series = sanitizeText(deal.series || 'N/A', 'N/A');
+          const amount = formatFundingAmount(deal.amount, deal.currency);
+          const investorList = Array.isArray(deal.investors)
+            ? deal.investors.map(inv => sanitizeText(inv, '')).filter(Boolean)
+            : [];
+          const investors = investorList.length
+            ? investorList.join(', ')
+            : 'Investors undisclosed';
+          const link = deal.url
+            ? `<a href="${deal.url}" target="_blank" rel="noopener">Source</a>`
+            : '';
+          return `<li>
+              <strong>${company}</strong> - ${series} round (${amount})
+              <div class="meta-line">
+                <span>${date}</span>
+                ${link}
+              </div>
+              <p class="subtext">Investors: ${investors}</p>
+            </li>`;
+        }).join('')}</ul>`
+      : '<p class="empty-item">No comparable market deals identified.</p>';
+
+    const detailsHTML = fundingDetails.length
+      ? `<ul>${fundingDetails.map(item => {
+          const type = sanitizeText(item.type || 'Funding', 'Funding');
+          const amount = sanitizeText(item.amount || 'Undisclosed', 'Undisclosed');
+          const date = Formatters.date(item.date);
+          const investorList = Array.isArray(item.investors)
+            ? item.investors.map(inv => sanitizeText(inv, '')).filter(Boolean)
+            : [];
+          const investors = investorList.length
+            ? investorList.join(', ')
+            : 'Investors undisclosed';
+          const reference = sanitizeText(item.reference || '', '');
+          return `<li>
+              <strong>${type}</strong> - ${amount}
+              <div class="meta-line">
+                <span>${date}</span>
+              </div>
+              <p class="subtext">Investors: ${investors}</p>
+              ${reference ? `<p class="subtext">${reference}</p>` : ''}
+            </li>`;
+        }).join('')}</ul>`
+      : '<p class="empty-item">No supporting deal documents provided.</p>';
+
+    const summaryHTML = `
+      <div class="evidence-summary">
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-label">Prior Funding</div>
+            <div class="metric-value">${priorFunding}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Funding Rounds</div>
+            <div class="metric-value">${fundingRounds.length}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Market Deals</div>
+            <div class="metric-value">${data.totalPeerDeals ?? peerDeals.length}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Confidence</div>
+            <div class="metric-value">${confidence}</div>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <h4>AI Assessment Rationale</h4>
+          <p>${sanitizeText(data.summary || 'No justification provided.', 'No justification provided.')}</p>
+        </div>
+
+      </div>
+    `;
+
+    const detailedHTML = `
+      <div class="evidence-detailed">
+        <div class="content-section">
+          <h4>Venture Funding Rounds</h4>
+          ${roundsHTML}
+        </div>
+        <div class="content-section">
+          <h4>Comparable Market Deals</h4>
+          ${dealsHTML}
+        </div>
+        <div class="content-section">
+          <h4>Supporting Deal Evidence</h4>
+          ${detailsHTML}
+        </div>
+      </div>
+    `;
+
+    const sourcesHTML = `
+      <div class="evidence-sources">
+        <div class="content-section">
+          <h4>Primary Research Focus</h4>
+          <ul>
+            <li><strong>Topic:</strong> ${sanitizeText(data.researchTopic || 'Unknown', 'Unknown')}</li>
+            <li><strong>Application:</strong> ${sanitizeText(data.applicationArea || 'Unknown', 'Unknown')}</li>
+            <li><strong>Research Date:</strong> ${Formatters.date(data.searchDate)}</li>
+            <li><strong>Assessment Date:</strong> ${Formatters.date(data.assessmentDate)}</li>
+          </ul>
+        </div>
+        <div class="content-section">
+          <h4>Source Links</h4>
+          <ul>
+            ${fundingRounds.map(round => round.url
+              ? `<li><a href="${round.url}" target="_blank" rel="noopener">${sanitizeText(round.source || 'Funding Round Source', 'Funding Round Source')}</a></li>`
+              : '').join('')}
+            ${peerDeals.map(deal => deal.url
+              ? `<li><a href="${deal.url}" target="_blank" rel="noopener">${sanitizeText(deal.company || 'Market Deal Source', 'Market Deal Source')}</a></li>`
+              : '').join('')}
+          </ul>
         </div>
       </div>
     `;
@@ -598,7 +860,7 @@ class AssessmentView {
         const link = patent.link
           ? `<a href="${patent.link}" target="_blank" rel="noopener">${id}</a>`
           : id;
-        return `<li>${link}${year} — ${title} <em>${assignee}</em></li>`;
+        return `<li>${link}${year} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${title} <em>${assignee}</em></li>`;
       }).join('')}</ul>`;
     };
 
@@ -613,7 +875,7 @@ class AssessmentView {
           const link = patent.link
             ? `<a href="${patent.link}" target="_blank" rel="noopener">${id}</a>`
             : id;
-          return `<li>${link} — ${title} <em>${assignee}</em></li>`;
+          return `<li>${link} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${title} <em>${assignee}</em></li>`;
         }).join('')}</ul>`
       : '<p class="empty-item">No reference patents identified.</p>';
 
@@ -1159,15 +1421,17 @@ class AssessmentView {
     if (!rubricElement) return;
     
       let rubricText;
-      if (type === 'competitive') {
-        rubricText = CompetitiveAPI.getRubricDescription(score);
-      } else if (type === 'market') {
-        rubricText = MarketAPI.getRubricDescription(score);
-      } else if (type === 'iprisk') {
-        rubricText = IPRiskAPI.getRubricDescription(score);
-      } else if (type === 'team') {
-        rubricText = TeamAPI.getRubricDescription(score);
-      }
+    if (type === 'competitive') {
+      rubricText = CompetitiveAPI.getRubricDescription(score);
+    } else if (type === 'market') {
+      rubricText = MarketAPI.getRubricDescription(score);
+    } else if (type === 'iprisk') {
+      rubricText = IPRiskAPI.getRubricDescription(score);
+    } else if (type === 'team') {
+      rubricText = TeamAPI.getRubricDescription(score);
+    } else if (type === 'funding') {
+      rubricText = FundingAPI.getRubricDescription(score);
+    }
       
       const scoreData = Formatters.scoreColor(
         score,
@@ -1187,15 +1451,17 @@ class AssessmentView {
    */
   checkDeviation(type, userScore) {
       let aiScore;
-      if (type === 'competitive') {
-        aiScore = this.data.competitive?.assessment?.score;
-      } else if (type === 'market') {
-        aiScore = this.data.market?.scoring?.score;
-      } else if (type === 'iprisk') {
-        aiScore = this.data.iprisk?.score;
-      } else if (type === 'team') {
-        aiScore = this.data.team?.score;
-      }
+    if (type === 'competitive') {
+      aiScore = this.data.competitive?.assessment?.score;
+    } else if (type === 'market') {
+      aiScore = this.data.market?.scoring?.score;
+    } else if (type === 'iprisk') {
+      aiScore = this.data.iprisk?.score;
+    } else if (type === 'team') {
+      aiScore = this.data.team?.score;
+    } else if (type === 'funding') {
+      aiScore = this.data.funding?.score;
+    }
       
       if (aiScore === undefined || aiScore === null) return;
     
@@ -1253,6 +1519,7 @@ class AssessmentView {
       
       // Check if all assessments complete
       if (this.userScores.team.submitted
+        && this.userScores.funding.submitted
         && this.userScores.competitive.submitted 
         && this.userScores.market.submitted
         && this.userScores.iprisk.submitted) {
@@ -1277,6 +1544,19 @@ class AssessmentView {
     }
     if (summary.teamJustification) {
       summary.teamJustification.textContent = this.userScores.team.justification || 'Not submitted';
+    }
+
+    // Funding scores
+    if (summary.fundingAi) {
+      summary.fundingAi.textContent = this.data.funding?.score ?? '-';
+    }
+    if (summary.fundingUser) {
+      summary.fundingUser.textContent = this.userScores.funding.submitted
+        ? this.userScores.funding.score
+        : '-';
+    }
+    if (summary.fundingJustification) {
+      summary.fundingJustification.textContent = this.userScores.funding.justification || 'Not submitted';
     }
     
     // Competitive scores
@@ -1340,6 +1620,11 @@ class AssessmentView {
         ...(this.data.team || {}),
         userScore: this.userScores.team.score,
         userJustification: this.userScores.team.justification
+      },
+      funding: {
+        ...(this.data.funding || {}),
+        userScore: this.userScores.funding.score,
+        userJustification: this.userScores.funding.justification
       },
       competitive: {
         ...(this.data.competitive || {}),

@@ -141,6 +141,43 @@ const Validators = {
   },
 
   /**
+   * Validate funding analysis response
+   */
+  validateFunding(data) {
+    if (!data || typeof data !== 'object') {
+      return { valid: false, error: 'Invalid funding data structure' };
+    }
+
+    if (!data.analysis || typeof data.analysis !== 'object') {
+      return { valid: false, error: 'Missing funding analysis payload' };
+    }
+
+    if (!data.assessment || typeof data.assessment !== 'object') {
+      return { valid: false, error: 'Missing funding assessment payload' };
+    }
+
+    if (!Number.isInteger(data.score) || data.score < 1 || data.score > 9) {
+      return { valid: false, error: `Invalid funding score: ${data.score}` };
+    }
+
+    const analysis = data.analysis;
+
+    if (!analysis.venture_funding || typeof analysis.venture_funding !== 'object') {
+      return { valid: false, error: 'Funding analysis missing venture_funding data' };
+    }
+
+    if (!Array.isArray(analysis.venture_funding.funding_rounds)) {
+      return { valid: false, error: 'Funding rounds must be an array' };
+    }
+
+    if (!Array.isArray(analysis.market_deals)) {
+      return { valid: false, error: 'Market deals must be an array' };
+    }
+
+    return { valid: true };
+  },
+
+  /**
    * Validate URL format
    */
   validateUrl(url) {
@@ -299,9 +336,13 @@ const Validators = {
         errors.push('User market score is missing');
       }
 
-      if (state.iprisk?.userScore === undefined || state.iprisk?.userScore === null) {
-        errors.push('User IP risk score is missing');
-      }
+    if (state.funding?.userScore === undefined || state.funding?.userScore === null) {
+      errors.push('User funding score is missing');
+    }
+
+    if (state.iprisk?.userScore === undefined || state.iprisk?.userScore === null) {
+      errors.push('User IP risk score is missing');
+    }
   
       return {
         valid: errors.length === 0,

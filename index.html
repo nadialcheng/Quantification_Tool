@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -38,7 +38,7 @@
 		</div>
 		<div class="company-header-meta">
 		  <span id="headerIndustry">-</span>
-		  <span class="meta-separator">•</span>
+		  <span class="meta-separator">�</span>
 		  <span id="headerStage">-</span>
 		</div>
 	  </div>
@@ -98,7 +98,7 @@
           <div class="phase-item" data-phase="company">
             <div class="phase-indicator">
               <span class="phase-number">1</span>
-              <span class="phase-check" style="display:none;">✓</span>
+              <span class="phase-check" style="display:none;">&#10003;</span>
             </div>
             <div class="phase-content">
               <div class="phase-name">Company Analysis</div>
@@ -109,18 +109,29 @@
           <div class="phase-item" data-phase="team">
             <div class="phase-indicator">
               <span class="phase-number">2</span>
-              <span class="phase-check" style="display:none;">✓</span>
+              <span class="phase-check" style="display:none;">&#10003;</span>
             </div>
             <div class="phase-content">
               <div class="phase-name">Team Analysis</div>
-              <div class="phase-time">~5 minutes</div>
-            </div>
+           <div class="phase-time">~5 minutes</div>
           </div>
-          
-          <div class="phase-item" data-phase="competitive">
+        </div>
+
+        <div class="phase-item" data-phase="funding">
+          <div class="phase-indicator">
+            <span class="phase-number">3</span>
+            <span class="phase-check" style="display:none;">&#10003;</span>
+          </div>
+          <div class="phase-content">
+            <div class="phase-name">Funding Analysis</div>
+            <div class="phase-time">~5 minutes</div>
+          </div>
+        </div>
+
+        <div class="phase-item" data-phase="competitive">
             <div class="phase-indicator">
-              <span class="phase-number">3</span>
-              <span class="phase-check" style="display:none;">✓</span>
+              <span class="phase-number">4</span>
+              <span class="phase-check" style="display:none;">&#10003;</span>
             </div>
             <div class="phase-content">
               <div class="phase-name">Competitive Analysis</div>
@@ -130,8 +141,8 @@
           
           <div class="phase-item" data-phase="market">
             <div class="phase-indicator">
-              <span class="phase-number">4</span>
-              <span class="phase-check" style="display:none;">✓</span>
+              <span class="phase-number">5</span>
+              <span class="phase-check" style="display:none;">&#10003;</span>
             </div>
             <div class="phase-content">
               <div class="phase-name">Market Analysis</div>
@@ -141,8 +152,8 @@
           
           <div class="phase-item" data-phase="iprisk">
             <div class="phase-indicator">
-              <span class="phase-number">5</span>
-              <span class="phase-check" style="display:none;">✓</span>
+              <span class="phase-number">6</span>
+              <span class="phase-check" style="display:none;">&#10003;</span>
             </div>
             <div class="phase-content">
               <div class="phase-name">IP Risk Analysis</div>
@@ -176,6 +187,10 @@
 		  <button class="tab-btn" data-tab="team">
 			Team
 			<span class="score-badge" id="teamScoreBadge"></span>
+		  </button>
+		  <button class="tab-btn" data-tab="funding">
+			Funding
+			<span class="score-badge" id="fundingScoreBadge"></span>
 		  </button>
 		  <button class="tab-btn" data-tab="competitive">
 			Competitive Risk
@@ -285,6 +300,70 @@
             </div>
             
             <div id="teamEvidence" class="evidence-content"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Funding Tab -->
+      <div id="fundingTab" class="tab-content" style="display:none;">
+        <div class="assessment-layout">
+          <!-- Scoring Panel -->
+          <div class="scoring-panel">
+            <div class="scoring-header">
+              <h3>Funding Score</h3>
+              <div class="ai-score">
+                <span class="ai-label">AI Score</span>
+                <span class="ai-value" id="fundingAiScore">-</span>
+              </div>
+            </div>
+            
+            <div class="user-scoring">
+              <div class="score-display" id="fundingUserScore">5</div>
+              <input 
+                type="range" 
+                id="fundingSlider" 
+                min="1" 
+                max="9" 
+                value="5"
+                class="score-slider"
+              >
+              <div class="score-labels">
+                <span>1</span>
+                <span>3</span>
+                <span>5</span>
+                <span>7</span>
+                <span>9</span>
+              </div>
+              
+              <div class="rubric-display" id="fundingRubric"></div>
+              
+              <textarea 
+                id="fundingJustification" 
+                class="justification-input"
+                placeholder="Provide your justification for this score..."
+                rows="4"
+              ></textarea>
+              
+              <div id="fundingWarning" class="deviation-warning" style="display:none;"></div>
+              
+              <button id="fundingSubmit" class="btn btn-primary">
+                Submit Assessment
+              </button>
+            </div>
+          </div>
+          
+          <!-- Evidence Panel -->
+          <div class="evidence-panel">
+            <div class="evidence-header">
+              <h3>Funding Analysis</h3>
+              <div class="view-toggles">
+				  <button class="view-btn active" data-view="summary">Summary</button>
+				  <button class="view-btn" data-view="detailed">Detailed</button>
+				  <button class="view-btn" data-view="sources">Sources</button>
+				</div>
+            </div>
+            
+            <div id="fundingEvidence" class="evidence-content"></div>
           </div>
         </div>
       </div>
@@ -503,6 +582,21 @@
               </div>
               <div class="justification-display" id="teamJustificationSummary"></div>
             </div>
+
+            <div class="score-card">
+              <h3>Funding</h3>
+              <div class="score-comparison">
+                <div class="score-item">
+                  <span class="score-label">AI Score</span>
+                  <span class="score-value" id="summaryFundingAi">-</span>
+                </div>
+                <div class="score-item">
+                  <span class="score-label">User Score</span>
+                  <span class="score-value" id="summaryFundingUser">-</span>
+                </div>
+              </div>
+              <div class="justification-display" id="fundingJustificationSummary"></div>
+            </div>
             
             <div class="score-card">
               <h3>Competitive Risk</h3>
@@ -548,9 +642,14 @@
               </div>
               <div class="justification-display" id="ipRiskJustificationSummary"></div>
             </div>
-          </div>
-          
-          <div class="summary-actions">
+        </div>
+        
+        <div class="team-summary-box">
+          <h3>Team Members</h3>
+          <div id="summaryTeamMembers" class="team-members-list"></div>
+        </div>
+        
+        <div class="summary-actions">
             <button id="exportFinalBtn" class="btn btn-primary btn-large">
               Export Full Report
             </button>
@@ -582,6 +681,7 @@
   <script src="js/utils/export.js"></script>
   <script src="js/api/company.js"></script>
   <script src="js/api/team.js"></script>
+  <script src="js/api/funding.js"></script>
   <script src="js/api/competitive.js"></script>
   <script src="js/api/market.js"></script>
   <script src="js/api/iprisk.js"></script>
@@ -592,3 +692,4 @@
   <script src="js/core/app.js"></script>
 </body>
 </html>
+

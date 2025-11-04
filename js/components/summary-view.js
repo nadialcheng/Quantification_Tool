@@ -24,12 +24,16 @@ class SummaryView {
       teamAi: document.getElementById('summaryTeamAi'),
       teamUser: document.getElementById('summaryTeamUser'),
       teamJustification: document.getElementById('teamJustificationSummary'),
+      fundingAi: document.getElementById('summaryFundingAi'),
+      fundingUser: document.getElementById('summaryFundingUser'),
+      fundingJustification: document.getElementById('fundingJustificationSummary'),
       marketAi: document.getElementById('summaryMarketAi'),
       marketUser: document.getElementById('summaryMarketUser'),
       marketJustification: document.getElementById('marketJustificationSummary'),
       ipRiskAi: document.getElementById('summaryIpRiskAi'),
       ipRiskUser: document.getElementById('summaryIpRiskUser'),
-      ipRiskJustification: document.getElementById('ipRiskJustificationSummary')
+      ipRiskJustification: document.getElementById('ipRiskJustificationSummary'),
+      teamMembers: document.getElementById('summaryTeamMembers')
     };
   }
 
@@ -158,6 +162,25 @@ class SummaryView {
       this.elements.teamJustification.textContent = data.team.userJustification;
     }
 
+    this.displayTeamMembers(data.team);
+
+    // Funding scores
+    if (this.elements.fundingAi && data.funding) {
+      this.elements.fundingAi.textContent = data.funding.score ?? '-';
+      const scoreData = Formatters.scoreColor(data.funding.score, 'funding');
+      this.elements.fundingAi.style.color = scoreData.color;
+    }
+
+    if (this.elements.fundingUser && data.funding?.userScore !== undefined) {
+      this.elements.fundingUser.textContent = data.funding.userScore;
+      const scoreData = Formatters.scoreColor(data.funding.userScore, 'funding');
+      this.elements.fundingUser.style.color = scoreData.color;
+    }
+
+    if (this.elements.fundingJustification && data.funding?.userJustification) {
+      this.elements.fundingJustification.textContent = data.funding.userJustification;
+    }
+
     // Competitive scores
     if (this.elements.competitiveAi && data.competitive) {
       this.elements.competitiveAi.textContent = data.competitive.assessment?.score || '-';
@@ -211,6 +234,97 @@ class SummaryView {
   }
 
   /**
+   * Display team members overview
+   */
+  displayTeamMembers(teamData) {
+    const container = this.elements.teamMembers;
+    if (!container) return;
+
+    const members = teamData?.formatted?.members || teamData?.team?.team_members || [];
+
+    const normalizeText = (value) => {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/[–—−]/g, '-')
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .replace(/[•·]/g, '-')
+        .replace(/[^\x20-\x7E]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const sanitizeText = (value, fallback = '') => {
+      const normalized = normalizeText(value);
+      if (!normalized) return fallback;
+      return Formatters.escapeHTML(normalized);
+    };
+
+    if (!Array.isArray(members) || members.length === 0) {
+      container.innerHTML = '<p class="empty-item">No team members listed.</p>';
+      return;
+    }
+
+    const summarizeMember = (member) => {
+      const workHistory = Array.isArray(member?.work_history) ? member.work_history : [];
+      if (workHistory.length > 0) {
+        const entry = workHistory[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry, '');
+        }
+        const role = sanitizeText(entry.position || entry.role || '', '');
+        const company = sanitizeText(entry.company || entry.organization || '', '');
+        const duration = sanitizeText(entry.duration || '', '');
+        const parts = [role, company].filter(Boolean);
+        const core = parts.join(' at ');
+        return duration ? `${core}${core ? ' ' : ''}(${duration})` : core;
+      }
+
+      const education = Array.isArray(member?.education_history) ? member.education_history : [];
+      if (education.length > 0) {
+        const entry = education[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry, '');
+        }
+        const degree = sanitizeText(entry.degree || '', '');
+        const institution = sanitizeText(entry.institution || '', '');
+        const year = sanitizeText(entry.year || '', '');
+        const parts = [degree, institution].filter(Boolean);
+        const core = parts.join(' - ');
+        return year ? `${core}${core ? ' ' : ''}(${year})` : core;
+      }
+
+      const commercialization = Array.isArray(member?.commercialization_experience)
+        ? member.commercialization_experience
+        : [];
+      if (commercialization.length > 0) {
+        const entry = commercialization[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry, '');
+        }
+        const text = entry.description || entry.summary || entry.title || entry.result || '';
+        return sanitizeText(text, '');
+      }
+
+      return '';
+    };
+
+    const listItems = members.map(member => {
+      const name = sanitizeText(member?.name || 'Unknown', 'Unknown');
+      const role = sanitizeText(member?.role_at_venture || 'Role not specified', 'Role not specified');
+      const summary = summarizeMember(member);
+      return `
+        <li>
+          <strong>${name}</strong>
+          <span class="team-role">${role}</span>
+          ${summary ? `<p class="team-summary-text">${summary}</p>` : ''}
+        </li>`;
+    }).join('');
+
+    container.innerHTML = `<ul class="team-summary-list">${listItems}</ul>`;
+  }
+
+  /**
    * Format funding amount
    */
   formatFunding(amount) {
@@ -230,6 +344,9 @@ class SummaryView {
 
     if (this.elements.companySummary) {
       this.elements.companySummary.style.display = 'none';
+    }
+    if (this.elements.teamMembers) {
+      this.elements.teamMembers.innerHTML = '';
     }
   }
 }

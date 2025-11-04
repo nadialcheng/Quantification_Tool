@@ -24,6 +24,16 @@ class AnalysisPipeline {
 		error: null
 	  },
 	  { 
+		name: 'Funding Analysis',
+		key: 'funding',
+		duration: 300,  // 5 minutes
+		status: 'pending',
+		startTime: null,
+		endTime: null,
+		data: null,
+		error: null
+	  },
+	  { 
 		name: 'Competitive Analysis',
 		key: 'competitive',
 		duration: 240,  // 4 minutes (was 120 seconds)
@@ -115,6 +125,7 @@ class AnalysisPipeline {
       await this.executePhase('company');
 
       const teamPromise = this.executePhase('team');
+      const fundingPromise = this.executePhase('funding');
       const competitivePromise = this.executePhase('competitive');
       const ipRiskPromise = this.executePhase('iprisk');
 
@@ -126,7 +137,7 @@ class AnalysisPipeline {
         return this.executePhase('market');
       })();
 
-      await Promise.all([teamPromise, competitivePromise, ipRiskPromise, marketPromise]);
+      await Promise.all([teamPromise, fundingPromise, competitivePromise, ipRiskPromise, marketPromise]);
 
       this.emit('complete', this.getResults());
       return this.getResults();
@@ -182,6 +193,9 @@ class AnalysisPipeline {
             break;
           case 'competitive':
             result = await this.runCompetitiveAnalysis();
+            break;
+          case 'funding':
+            result = await this.runFundingAnalysis();
             break;
           case 'market':
             result = await this.runMarketAnalysis();
@@ -264,6 +278,27 @@ class AnalysisPipeline {
     const validation = Validators.validateTeam(response);
     if (!validation.valid) {
       throw new Error(`Invalid team data: ${validation.error}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Run funding analysis
+   */
+  async runFundingAnalysis() {
+    if (!this.techDescription) {
+      throw new Error('Tech description not available');
+    }
+
+    const response = await FundingAPI.analyze(
+      this.techDescription,
+      this.abortController.signal
+    );
+
+    const validation = Validators.validateFunding(response);
+    if (!validation.valid) {
+      throw new Error(`Invalid funding data: ${validation.error}`);
     }
 
     return response;
@@ -445,6 +480,7 @@ class AnalysisPipeline {
     return {
       company: this.phases.find(p => p.key === 'company')?.data || null,
       team: this.phases.find(p => p.key === 'team')?.data || null,
+      funding: this.phases.find(p => p.key === 'funding')?.data || null,
       competitive: this.phases.find(p => p.key === 'competitive')?.data || null,
       market: this.phases.find(p => p.key === 'market')?.data || null,
       iprisk: this.phases.find(p => p.key === 'iprisk')?.data || null,

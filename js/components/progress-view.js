@@ -28,6 +28,7 @@ class ProgressView {
       phases: {
         company: document.querySelector('[data-phase="company"]'),
         team: document.querySelector('[data-phase="team"]'),
+        funding: document.querySelector('[data-phase="funding"]'),
         competitive: document.querySelector('[data-phase="competitive"]'),
         market: document.querySelector('[data-phase="market"]'),
         iprisk: document.querySelector('[data-phase="iprisk"]')
@@ -80,7 +81,7 @@ class ProgressView {
         if (number) number.style.display = 'block';
       }
     });
-    
+
     // Reset progress bar
     if (this.elements.bar) {
       this.elements.bar.style.width = '0%';
@@ -153,12 +154,13 @@ class ProgressView {
       phaseElement.classList.add('active');
       phaseElement.classList.remove('completed', 'error');
     }
-    
+
     // Update message
     if (this.elements.message) {
       const messages = {
         company: 'Analyzing company website and extracting information...',
         team: 'Evaluating founding team experience and execution capacity...',
+        funding: 'Assessing venture funding history and investor activity...',
         competitive: 'Analyzing competitive landscape and market players...',
         market: 'Analyzing market opportunity and growth potential...',
         iprisk: 'Evaluating intellectual property exposure and defensibility...'
@@ -183,7 +185,7 @@ class ProgressView {
       if (check) check.style.display = 'block';
       if (number) number.style.display = 'none';
     }
-    
+
     // Update message
     if (this.elements.message) {
       this.elements.message.textContent = `${data.name} completed in ${Math.round(data.duration)} seconds`;
@@ -199,7 +201,7 @@ class ProgressView {
       phaseElement.classList.remove('active');
       phaseElement.classList.add('error');
     }
-    
+
     // Update message
     if (this.elements.message) {
       this.elements.message.textContent = `Error in ${data.name}: ${data.error}`;
@@ -238,12 +240,12 @@ class ProgressView {
     if (this.elements.bar) {
       this.elements.bar.style.width = '0%';
     }
-    
-      if (this.elements.time) {
+
+    if (this.elements.time) {
       this.elements.time.textContent = '0:00 / 30:00';
-      }
     }
   }
+}
 
 // Make available globally
 window.ProgressView = ProgressView;
