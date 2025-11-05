@@ -580,6 +580,131 @@ body {
 }
 
 /* ===============================
+   Team Member Cards
+=============================== */
+.team-members {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.team-member-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.75rem;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.team-member-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.team-member-card .member-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.team-member-card h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--gray-900);
+}
+
+.team-member-card .member-role {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--primary-dark);
+  background: rgba(102, 126, 234, 0.12);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.team-member-card .member-content {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.team-member-card .member-section h5 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 0.75rem;
+}
+
+.team-member-card ul {
+  list-style: disc outside;
+  padding-left: 1.2rem;
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.team-member-card li {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--gray-800);
+  font-weight: 500;
+}
+
+.team-member-card li strong {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.team-member-card .history-duration {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+
+.team-member-card .empty-item {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+@media (max-width: 992px) {
+  .team-members {
+    gap: 1.25rem;
+  }
+
+  .team-member-card {
+    padding: 1.5rem;
+  }
+
+  .team-member-card .member-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .team-member-card .member-role {
+    font-size: 0.8125rem;
+    letter-spacing: 0.16em;
+  }
+}
+
+@media (max-width: 640px) {
+  .team-member-card {
+    padding: 1.25rem;
+  }
+
+  .team-member-card h4 {
+    font-size: 1.125rem;
+  }
+}
+
+/* ===============================
    Summary Content
 =============================== */
 .summary-content {

@@ -1,4 +1,4 @@
-﻿// js/components/assessment-view.js - Assessment display and user scoring
+// js/components/assessment-view.js - Assessment display and user scoring
 
 class AssessmentView {
   constructor() {
@@ -903,7 +903,7 @@ class AssessmentView {
         const link = patent.link
           ? `<a href="${patent.link}" target="_blank" rel="noopener">${id}</a>`
           : id;
-        return `<li>${link}${year} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${title} <em>${assignee}</em></li>`;
+        return `<li>${link}${year} - ${title} <em>${assignee}</em></li>`;
       }).join('')}</ul>`;
     };
 
@@ -918,7 +918,7 @@ class AssessmentView {
           const link = patent.link
             ? `<a href="${patent.link}" target="_blank" rel="noopener">${id}</a>`
             : id;
-          return `<li>${link} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${title} <em>${assignee}</em></li>`;
+          return `<li>${link} - ${title} <em>${assignee}</em></li>`;
         }).join('')}</ul>`
       : '<p class="empty-item">No reference patents identified.</p>';
 
