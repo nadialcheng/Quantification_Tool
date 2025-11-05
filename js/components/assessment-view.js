@@ -1,4 +1,4 @@
-// js/components/assessment-view.js - Assessment display and user scoring
+﻿// js/components/assessment-view.js - Assessment display and user scoring
 
 class AssessmentView {
   constructor() {
@@ -352,6 +352,21 @@ class AssessmentView {
     const container = this.elements.team.evidence;
     if (!container) return;
 
+    const normalizeText = (value) => {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/[^\x20-\x7E]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const sanitizeText = (value, fallback = '') => {
+      const normalized = normalizeText(value);
+      const target = normalized || fallback;
+      if (!target) return '';
+      return Formatters.escapeHTML(target);
+    };
+
     const composition = data.teamComposition || {};
     const members = Array.isArray(data.members) ? data.members : [];
     const confidence = (typeof data.confidence === 'number' && !isNaN(data.confidence))
@@ -362,49 +377,78 @@ class AssessmentView {
       if (!Array.isArray(items) || items.length === 0) {
         return `<p class="empty-item">${emptyLabel}</p>`;
       }
-      return `<ul>${items.map(item => formatter(item)).join('')}</ul>`;
+      const rendered = items
+        .map(item => formatter(item))
+        .filter(Boolean);
+      if (rendered.length === 0) {
+        return `<p class="empty-item">${emptyLabel}</p>`;
+      }
+      return `<ul>${rendered.join('')}</ul>`;
     };
 
     const formatWork = (entry) => {
-      if (typeof entry === 'string') return `<li>${Formatters.escapeHTML(entry)}</li>`;
-      const company = Formatters.escapeHTML(entry.company || 'Unknown Company');
-      const role = Formatters.escapeHTML(entry.position || '');
-      const duration = Formatters.escapeHTML(entry.duration || '');
-      return `<li><strong>${company}</strong>${role ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${role}` : ''}${duration ? ` <span class="history-duration">(${duration})</span>` : ''}</li>`;
+      if (typeof entry === 'string') {
+        const content = sanitizeText(entry);
+        return content ? `<li>${content}</li>` : '';
+      }
+      const company = sanitizeText(entry.company, 'Unknown Company');
+      const role = sanitizeText(entry.position);
+      const duration = sanitizeText(entry.duration);
+      const rolePart = role ? ` &ndash; ${role}` : '';
+      const durationPart = duration ? ` <span class="history-duration">(${duration})</span>` : '';
+      return `<li><strong>${company}</strong>${rolePart}${durationPart}</li>`;
     };
 
     const formatEducation = (entry) => {
-      if (typeof entry === 'string') return `<li>${Formatters.escapeHTML(entry)}</li>`;
-      const institution = Formatters.escapeHTML(entry.institution || 'Unknown Institution');
-      const degree = Formatters.escapeHTML(entry.degree || '');
-      const year = Formatters.escapeHTML(entry.year || '');
-      return `<li><strong>${institution}</strong>${degree ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${degree}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
+      if (typeof entry === 'string') {
+        const content = sanitizeText(entry);
+        return content ? `<li>${content}</li>` : '';
+      }
+      const institution = sanitizeText(entry.institution, 'Unknown Institution');
+      const degree = sanitizeText(entry.degree);
+      const year = sanitizeText(entry.year);
+      const degreePart = degree ? ` &ndash; ${degree}` : '';
+      const yearPart = year ? ` <span class="history-duration">${year}</span>` : '';
+      return `<li><strong>${institution}</strong>${degreePart}${yearPart}</li>`;
     };
 
     const formatCommercial = (entry) => {
-      if (typeof entry === 'string') return `<li>${Formatters.escapeHTML(entry)}</li>`;
-      const description = Formatters.escapeHTML(entry.description || 'Experience');
-      const company = Formatters.escapeHTML(entry.company || '');
-      const outcome = Formatters.escapeHTML(entry.outcome || '');
-      return `<li>${description}${company ? ` <strong>(${company})</strong>` : ''}${outcome ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${outcome}` : ''}</li>`;
+      if (typeof entry === 'string') {
+        const content = sanitizeText(entry);
+        return content ? `<li>${content}</li>` : '';
+      }
+      const description = sanitizeText(entry.description, 'Experience');
+      const company = sanitizeText(entry.company);
+      const outcome = sanitizeText(entry.outcome);
+      const companyPart = company ? ` <strong>(${company})</strong>` : '';
+      const outcomePart = outcome ? ` &ndash; ${outcome}` : '';
+      return `<li>${description}${companyPart}${outcomePart}</li>`;
     };
 
     const formatPublication = (entry) => {
-      if (typeof entry === 'string') return `<li>${Formatters.escapeHTML(entry)}</li>`;
-      const title = Formatters.escapeHTML(entry.title || 'Publication');
-      const venue = Formatters.escapeHTML(entry.venue || '');
-      const year = Formatters.escapeHTML(entry.year || '');
-      const type = Formatters.escapeHTML(entry.type || '');
-      const details = [venue, year, type].filter(Boolean).join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ');
+      if (typeof entry === 'string') {
+        const content = sanitizeText(entry);
+        return content ? `<li>${content}</li>` : '';
+      }
+      const title = sanitizeText(entry.title, 'Publication');
+      const venue = sanitizeText(entry.venue);
+      const year = sanitizeText(entry.year);
+      const type = sanitizeText(entry.type);
+      const details = [venue, year, type].filter(Boolean).join(' &ndash; ');
       return `<li><strong>${title}</strong>${details ? ` <span class="history-duration">${details}</span>` : ''}</li>`;
     };
 
     const formatAward = (entry) => {
-      if (typeof entry === 'string') return `<li>${Formatters.escapeHTML(entry)}</li>`;
-      const name = Formatters.escapeHTML(entry.award_name || 'Award');
-      const org = Formatters.escapeHTML(entry.organization || '');
-      const year = Formatters.escapeHTML(entry.year || '');
-      return `<li><strong>${name}</strong>${org ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ${org}` : ''}${year ? ` <span class="history-duration">${year}</span>` : ''}</li>`;
+      if (typeof entry === 'string') {
+        const content = sanitizeText(entry);
+        return content ? `<li>${content}</li>` : '';
+      }
+      const name = sanitizeText(entry.award_name, 'Award');
+      const org = sanitizeText(entry.organization);
+      const year = sanitizeText(entry.year);
+      const orgPart = org ? ` &ndash; ${org}` : '';
+      const yearPart = year ? ` <span class="history-duration">${year}</span>` : '';
+      return `<li><strong>${name}</strong>${orgPart}${yearPart}</li>`;
     };
 
     const summaryHTML = `
@@ -430,7 +474,7 @@ class AssessmentView {
 
         <div class="content-section">
           <h4>AI Assessment Rationale</h4>
-          <p>${Formatters.escapeHTML(data.justification || 'No justification provided.')}</p>
+          <p>${sanitizeText(data.justification, 'No justification provided.')}</p>
         </div>
 
         <div class="content-section">
@@ -452,11 +496,14 @@ class AssessmentView {
           <ul>${Formatters.listToHTML(data.experiences || [], 6)}</ul>
         </div>
         <div class="team-members">
-          ${members.map(member => `
+          ${members.map(member => {
+            const name = sanitizeText(member.name, 'Team Member');
+            const memberRole = sanitizeText(member.role_at_venture, 'Role not specified');
+            return `
             <div class="team-member-card">
               <div class="member-header">
-                <h4>${Formatters.escapeHTML(member.name || 'Team Member')}</h4>
-                <span class="member-role">${Formatters.escapeHTML(member.role_at_venture || 'Role not specified')}</span>
+                <h4>${name}</h4>
+                <span class="member-role">${memberRole}</span>
               </div>
               <div class="member-content">
                 <div class="member-section">
@@ -481,7 +528,7 @@ class AssessmentView {
                 </div>
               </div>
             </div>
-          `).join('') || '<p class="empty-item">No team members listed.</p>'}
+          `; }).join('') || '<p class="empty-item">No team members listed.</p>'}
         </div>
       </div>
     `;
@@ -494,7 +541,7 @@ class AssessmentView {
         </div>
         <div class="content-section">
           <h4>Rubric Alignment</h4>
-          <p>${Formatters.escapeHTML(data.rubric || 'No rubric explanation provided.')}</p>
+          <p>${sanitizeText(data.rubric, 'No rubric explanation provided.')}</p>
         </div>
       </div>
     `;
@@ -551,10 +598,6 @@ class AssessmentView {
     const normalizeText = (value) => {
       if (value === null || value === undefined) return '';
       return String(value)
-        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢]/g, '-')
-        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â]/g, '"')
-        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢]/g, "'")
-        .replace(/[ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â·]/g, '-')
         .replace(/[^\x20-\x7E]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
