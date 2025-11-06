@@ -582,6 +582,46 @@ body {
 /* ===============================
    Team Member Cards
 =============================== */
+.team-summary-section {
+  margin-top: 1.5rem;
+}
+
+.team-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.team-summary-list li {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.team-summary-list strong {
+  font-size: 1rem;
+  color: var(--gray-900);
+  font-weight: 600;
+}
+
+.team-summary-role {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+
+.team-summary-text {
+  font-size: 0.813rem;
+  color: var(--gray-600);
+  line-height: 1.4;
+}
+
 .team-members {
   display: grid;
   gap: 1.75rem;

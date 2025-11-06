@@ -451,6 +451,71 @@ class AssessmentView {
       return `<li><strong>${name}</strong>${orgPart}${yearPart}</li>`;
     };
 
+    const summarizeMember = (member) => {
+      const workHistory = Array.isArray(member?.work_history) ? member.work_history : [];
+      if (workHistory.length > 0) {
+        const entry = workHistory[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry);
+        }
+        const role = sanitizeText(entry.position || entry.role);
+        const company = sanitizeText(entry.company || entry.organization);
+        const duration = sanitizeText(entry.duration);
+        const parts = [role, company].filter(Boolean).join(' at ');
+        return duration ? `${parts}${parts ? ' ' : ''}(${duration})` : parts;
+      }
+
+      const education = Array.isArray(member?.education_history) ? member.education_history : [];
+      if (education.length > 0) {
+        const entry = education[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry);
+        }
+        const degree = sanitizeText(entry.degree);
+        const institution = sanitizeText(entry.institution);
+        const year = sanitizeText(entry.year);
+        const parts = [degree, institution].filter(Boolean).join(' - ');
+        return year ? `${parts}${parts ? ' ' : ''}(${year})` : parts;
+      }
+
+      const commercialization = Array.isArray(member?.commercialization_experience)
+        ? member.commercialization_experience
+        : [];
+      if (commercialization.length > 0) {
+        const entry = commercialization[0];
+        if (typeof entry === 'string') {
+          return sanitizeText(entry);
+        }
+        const text = entry.description || entry.summary || entry.title || entry.result || '';
+        return sanitizeText(text);
+      }
+
+      return '';
+    };
+
+    const renderTeamSnapshot = (teamMembers) => {
+      if (!Array.isArray(teamMembers) || teamMembers.length === 0) {
+        return '<p class="empty-item">No team members listed.</p>';
+      }
+
+      const items = teamMembers.slice(0, 6).map(member => {
+        const name = sanitizeText(member?.name, 'Unknown');
+        const role = sanitizeText(member?.role_at_venture || member?.role || '');
+        const summary = summarizeMember(member);
+        const rolePart = role ? `<span class="team-summary-role">${role}</span>` : '';
+        const summaryPart = summary ? `<span class="team-summary-text">${summary}</span>` : '';
+        return `
+          <li>
+            <strong>${name}</strong>
+            ${rolePart}
+            ${summaryPart}
+          </li>
+        `;
+      }).join('');
+
+      return `<ul class="team-summary-list">${items}</ul>`;
+    };
+
     const summaryHTML = `
       <div class="evidence-summary">
         <div class="metrics-row">
@@ -485,6 +550,11 @@ class AssessmentView {
         <div class="content-section">
           <h4>Key Gaps</h4>
           <ul>${Formatters.listToHTML(data.gaps || [], 5)}</ul>
+        </div>
+
+        <div class="content-section team-summary-section">
+          <h4>Team Snapshot</h4>
+          ${renderTeamSnapshot(members)}
         </div>
       </div>
     `;
