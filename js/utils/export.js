@@ -1,5 +1,102 @@
 // js/utils/export.js - PDF export utility
 
+/**
+ * Shared helpers for consistent PDF layout, typography, and spacing.
+ */
+const PdfLayout = {
+  marginLeft: 20,
+  marginRight: 20,
+  defaultFont: 'helvetica',
+  defaultFontSize: 11,
+  lineHeightFactor: 1.35,
+
+  init(doc) {
+    doc.setFont(this.defaultFont, 'normal');
+    doc.setFontSize(this.defaultFontSize);
+    doc.setLineHeightFactor(this.lineHeightFactor);
+    doc.setTextColor(40);
+  },
+
+  pageWidth(doc) {
+    return doc.internal.pageSize.width;
+  },
+
+  pageHeight(doc) {
+    return doc.internal.pageSize.height;
+  },
+
+  usableWidth(doc, extraPadding = 0) {
+    return (
+      this.pageWidth(doc) -
+      (this.marginLeft + this.marginRight + extraPadding)
+    );
+  },
+
+  lineHeight(doc, fontSize) {
+    const size = fontSize ?? doc.internal.getFontSize();
+    return (doc.getLineHeightFactor() * size) / doc.internal.scaleFactor;
+  },
+
+  wrap(doc, text, maxWidth) {
+    const str = text === undefined || text === null ? '' : String(text);
+    const width = maxWidth ?? this.usableWidth(doc);
+    return doc.splitTextToSize(str, width);
+  },
+
+  drawText(doc, text, x, y, options = {}) {
+    if (text === undefined || text === null) {
+      return y;
+    }
+
+    const {
+      maxWidth,
+      lineHeight = this.lineHeight(doc, options.fontSize),
+      align
+    } = options;
+
+    const lines = Array.isArray(text) ? text : this.wrap(doc, text, maxWidth);
+    let cursor = y;
+
+    lines.forEach(line => {
+      const target = align ? { align } : undefined;
+      doc.text(line, x, cursor, target);
+      cursor += lineHeight;
+    });
+
+    return cursor;
+  },
+
+  drawBulletList(doc, items, x, y, options = {}) {
+    const bullet = options.bullet ?? '-';
+    const indent = options.indent ?? 4;
+    const afterItem = options.afterItem ?? 2;
+    const lineHeight = options.lineHeight ?? this.lineHeight(doc);
+    const maxWidth =
+      options.maxWidth ?? this.usableWidth(doc, indent);
+
+    let cursor = y;
+    (items || []).forEach(item => {
+      const content = item ? `${bullet} ${item}` : `${bullet}`;
+      const lines = this.wrap(doc, content, maxWidth);
+      lines.forEach(line => {
+        doc.text(line, x, cursor);
+        cursor += lineHeight;
+      });
+      cursor += afterItem;
+    });
+
+    return cursor;
+  },
+
+  ensureSpace(doc, y, required = 20, resetTo = 30) {
+    if (y > this.pageHeight(doc) - required) {
+      doc.addPage();
+      return resetTo;
+    }
+    return y;
+  }
+};
+
 const ExportUtility = {
   /**
    * Generate PDF report
@@ -18,6 +115,8 @@ const ExportUtility = {
     try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
+
+      this.setupDocument(doc);
 
       // Set document properties
       doc.setProperties({
@@ -72,6 +171,13 @@ const ExportUtility = {
       console.error('Export failed:', error);
       throw error;
     }
+  },
+
+  /**
+   * Apply baseline typography and spacing defaults to the document.
+   */
+  setupDocument(doc) {
+    PdfLayout.init(doc);
   },
 
   /**
@@ -170,92 +276,112 @@ const ExportUtility = {
    */
   addExecutiveSummary(doc, data) {
     const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - PdfLayout.marginLeft - PdfLayout.marginRight;
     let y = 30;
+
+    const bulletOptions = {
+      bullet: '-',
+      lineHeight: PdfLayout.lineHeight(doc),
+      maxWidth: contentWidth,
+      afterItem: 1
+    };
+
+    const addHeading = (title, size = 14, spacing = 10) => {
+      y = PdfLayout.ensureSpace(doc, y, 25);
+      doc.setFontSize(size);
+      doc.setFont(undefined, 'bold');
+      doc.text(title, PdfLayout.marginLeft, y);
+      y += spacing;
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'normal');
+    };
 
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
-    doc.text('Executive Summary', 20, y);
+    doc.text('Executive Summary', PdfLayout.marginLeft, y);
     y += 15;
 
-    // Company overview
-    doc.setFontSize(14);
-    doc.text('Company Overview', 20, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    const overview = data.company.company_overview;
-    const lines = doc.splitTextToSize(
+    addHeading('Company Overview');
+    const overview = data.company?.company_overview || {};
+    y = PdfLayout.drawText(
+      doc,
       overview.company_description || overview.mission_statement || 'No description available',
-      pageWidth - 40
+      PdfLayout.marginLeft,
+      y,
+      { maxWidth: contentWidth }
     );
-    doc.text(lines, 20, y);
-    y += lines.length * 5 + 10;
+    y += 8;
 
-    // Key metrics
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Key Metrics', 20, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    
-    // Competitive metrics
-    const competitive = data.competitive.formatted;
-    doc.text(`• Total Competitors: ${competitive.totalCompetitors}`, 25, y);
-    y += 7;
-    doc.text(`• Competitive Intensity: ${Formatters.competitiveIntensity(competitive.competitiveIntensity)}`, 25, y);
-    y += 7;
-    doc.text(`• Market Leaders: ${competitive.marketLeaders.length}`, 25, y);
-    y += 10;
-
-    // Funding metrics
+    addHeading('Key Metrics');
+    const competitive = data.competitive?.formatted || {};
     const funding = data.funding?.formatted || {};
+    const market = data.market?.formatted || {};
+    const primaryMarket = market.primaryMarket || {};
+    const iprisk = data.iprisk?.formatted || {};
+    const ipRiskConfidence = typeof iprisk.dataConfidence === 'number'
+      ? `${Math.round(iprisk.dataConfidence * 100)}%`
+      : 'Unknown';
     const fundingConfidence = typeof funding.confidence === 'number'
       ? Formatters.confidence(funding.confidence)
       : 'Not available';
     const totalPeerDeals = funding.totalPeerDeals ?? (funding.peerDeals ? funding.peerDeals.length : 0);
-    doc.text(`• Prior Funding Secured: ${funding.hasPriorFunding ? 'Yes' : 'No'}`, 25, y);
-    y += 7;
-    doc.text(`• Funding Rounds Identified: ${funding.totalFundingRounds ?? 0}`, 25, y);
-    y += 7;
-    doc.text(`• Comparable Market Deals: ${totalPeerDeals}`, 25, y);
-    y += 7;
-    doc.text(`• Funding Data Confidence: ${fundingConfidence}`, 25, y);
-    y += 10;
 
-    // Market metrics
-    const market = data.market.formatted;
-    doc.text(`• Total Addressable Market: ${Formatters.currency(market.primaryMarket.tam)}`, 25, y);
-    y += 7;
-    doc.text(`• Growth Rate (CAGR): ${Formatters.percentage(market.primaryMarket.cagr)}`, 25, y);
-    y += 7;
-    doc.text(`• Market Category: ${Formatters.tamCategory(market.tamCategory)}`, 25, y);
-    y += 7;
+    const metricSections = [
+      {
+        title: 'Competitive',
+        items: [
+          `Total Competitors: ${competitive.totalCompetitors ?? '-'}`,
+          `Competitive Intensity: ${Formatters.competitiveIntensity(competitive.competitiveIntensity)}`,
+          `Market Leaders: ${(competitive.marketLeaders || []).length}`
+        ]
+      },
+      {
+        title: 'Funding',
+        items: [
+          `Prior Funding Secured: ${funding.hasPriorFunding ? 'Yes' : 'No'}`,
+          `Funding Rounds Identified: ${funding.totalFundingRounds ?? 0}`,
+          `Comparable Market Deals: ${totalPeerDeals}`,
+          `Funding Data Confidence: ${fundingConfidence}`
+        ]
+      },
+      {
+        title: 'Market',
+        items: [
+          `Total Addressable Market: ${Formatters.currency(primaryMarket.tam)}`,
+          `Growth Rate (CAGR): ${Formatters.percentage(primaryMarket.cagr)}`,
+          `Market Category: ${Formatters.tamCategory(market.tamCategory)}`
+        ]
+      },
+      {
+        title: 'IP Risk',
+        items: [
+          `Risk Level: ${Formatters.titleCase(iprisk.riskLevel || 'Unknown')}`,
+          `Unique Protectable Features: ${(iprisk.uniqueFeatures || []).length}`,
+          `Top Patent Owners Reviewed: ${(iprisk.topOwners || []).length}`,
+          `Data Confidence: ${ipRiskConfidence}`
+        ]
+      }
+    ];
 
-    const iprisk = data.iprisk.formatted;
-    const ipRiskConfidence = iprisk.dataConfidence !== null && iprisk.dataConfidence !== undefined
-      ? `${Math.round(iprisk.dataConfidence * 100)}%`
-      : 'Unknown';
-    doc.text(`• IP Risk Level: ${Formatters.titleCase(iprisk.riskLevel || 'Unknown')}`, 25, y);
-    y += 7;
-    doc.text(`• Unique Protectable Features: ${(iprisk.uniqueFeatures || []).length}`, 25, y);
-    y += 7;
-    doc.text(`• Top Patent Owners Reviewed: ${(iprisk.topOwners || []).length}`, 25, y);
-    y += 7;
-    doc.text(`• IP Data Confidence: ${ipRiskConfidence}`, 25, y);
-    y += 15;
+    metricSections.forEach(section => {
+      const items = section.items.filter(Boolean);
+      if (!items.length) return;
+      y = PdfLayout.ensureSpace(doc, y, 30);
+      doc.setFont(undefined, 'bold');
+      doc.text(`${section.title}:`, PdfLayout.marginLeft, y);
+      y += 6;
+      doc.setFont(undefined, 'normal');
+      y = PdfLayout.drawBulletList(
+        doc,
+        items,
+        PdfLayout.marginLeft,
+        y,
+        bulletOptions
+      );
+      y += 6;
+    });
 
-    // Assessment summary
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Assessment Summary', 20, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-
+    addHeading('Assessment Summary');
     const teamFormatted = data.team?.formatted || {};
     const teamComposition = teamFormatted.teamComposition || {};
     const teamMembersCount = teamComposition.total ?? (teamFormatted.members?.length ?? '-');
@@ -265,58 +391,57 @@ const ExportUtility = {
       ? Formatters.confidence(teamFormatted.confidence)
       : 'Not available';
 
-    doc.text(`�?� Team Size: ${teamMembersCount}`, 25, y);
-    y += 7;
-    doc.text(`�?� Technical Experts: ${teamComposition.technical ?? 0} | Business Leaders: ${teamComposition.business ?? 0}`, 25, y);
-    y += 7;
-    doc.text(`�?� Team Assessment Confidence: ${teamConfidence}`, 25, y);
-    y += 7;
+    y = PdfLayout.drawBulletList(
+      doc,
+      [
+        `Team Size: ${teamMembersCount}`,
+        `Technical Experts: ${teamComposition.technical ?? 0} | Business Leaders: ${teamComposition.business ?? 0}`,
+        `Team Assessment Confidence: ${teamConfidence}`
+      ],
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y = PdfLayout.drawBulletList(
+      doc,
+      [
+        `Key Strengths: ${teamStrengthsText}`,
+        `Key Gaps: ${teamGapsText}`
+      ],
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y += 6;
 
-    const strengthLines = doc.splitTextToSize(`�?� Key Strengths: ${teamStrengthsText}`, pageWidth - 60);
-    strengthLines.forEach(line => {
-      doc.text(line, 25, y);
-      y += 7;
-    });
-
-    const gapLines = doc.splitTextToSize(`�?� Key Gaps: ${teamGapsText}`, pageWidth - 60);
-    gapLines.forEach(line => {
-      doc.text(line, 25, y);
-      y += 7;
-    });
-    y += 3;
-    
-    const fundingFormatted = data.funding?.formatted || {};
-    const fundingConfidenceSummary = typeof fundingFormatted.confidence === 'number'
-      ? Formatters.confidence(fundingFormatted.confidence)
-      : 'Not available';
-    const fundingSummaryLines = [
-      `• Funding Rounds: ${fundingFormatted.totalFundingRounds ?? 0}`,
-      `• Comparable Deals Reviewed: ${fundingFormatted.totalPeerDeals ?? (fundingFormatted.peerDeals ? fundingFormatted.peerDeals.length : 0)}`,
-      `• Funding Confidence: ${fundingConfidenceSummary}`
+    const fundingSummary = [
+      `Funding Rounds: ${funding.totalFundingRounds ?? 0}`,
+      `Comparable Deals Reviewed: ${totalPeerDeals}`,
+      `Funding Confidence: ${fundingConfidence}`
     ];
-    fundingSummaryLines.forEach(text => {
-      const lines = doc.splitTextToSize(text, pageWidth - 60);
-      lines.forEach(line => {
-        doc.text(line, 25, y);
-        y += 7;
-      });
-    });
-    y += 3;
+    y = PdfLayout.drawBulletList(
+      doc,
+      fundingSummary,
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y += 4;
 
     const aiScores = [
       data.team?.score,
       data.funding?.score,
-      data.competitive.assessment.score,
-      data.market.scoring.score,
-      data.iprisk.score
+      data.competitive?.assessment?.score,
+      data.market?.scoring?.score,
+      data.iprisk?.score
     ].filter(score => score !== undefined && score !== null);
 
     const userScores = [
       data.team?.userScore,
       data.funding?.userScore,
-      data.competitive.userScore,
-      data.market.userScore,
-      data.iprisk.userScore
+      data.competitive?.userScore,
+      data.market?.userScore,
+      data.iprisk?.userScore
     ].filter(score => score !== undefined && score !== null);
 
     const avgAiScore = aiScores.length
@@ -325,36 +450,51 @@ const ExportUtility = {
     const avgUserScore = userScores.length
       ? userScores.reduce((sum, value) => sum + value, 0) / userScores.length
       : null;
-    
-    doc.text(`Average AI Score: ${avgAiScore !== null ? `${avgAiScore.toFixed(1)}/9` : '-'}`, 25, y);
-    y += 7;
-    doc.text(`Average User Score: ${avgUserScore !== null ? `${avgUserScore.toFixed(1)}/9` : '-'}`, 25, y);
-  },
 
+    y = PdfLayout.drawText(
+      doc,
+      `Average AI Score: ${avgAiScore !== null ? `${avgAiScore.toFixed(1)}/9` : '-'}`,
+      PdfLayout.marginLeft,
+      y,
+      { maxWidth: contentWidth }
+    );
+    y = PdfLayout.drawText(
+      doc,
+      `Average User Score: ${avgUserScore !== null ? `${avgUserScore.toFixed(1)}/9` : '-'}`,
+      PdfLayout.marginLeft,
+      y,
+      { maxWidth: contentWidth }
+    );
+  },
   /**
    * Add team assessment page
    */
   addTeamAssessment(doc, data) {
     const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - PdfLayout.marginLeft - PdfLayout.marginRight;
     let y = 30;
 
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
-    doc.text('Team Assessment', 20, y);
+    doc.text('Team Assessment', PdfLayout.marginLeft, y);
     y += 15;
 
     if (!data.team) {
       doc.setFontSize(12);
       doc.setFont(undefined, 'normal');
-      doc.text('Team assessment data not available.', 20, y);
+      doc.text('Team assessment data not available.', PdfLayout.marginLeft, y);
       return;
     }
 
     const ensureSpace = (padding = 20) => {
-      if (y > 280 - padding) {
-        doc.addPage();
-        y = 30;
-      }
+      y = PdfLayout.ensureSpace(doc, y, padding);
+    };
+
+    const bulletOptions = {
+      bullet: '-',
+      lineHeight: PdfLayout.lineHeight(doc),
+      maxWidth: contentWidth,
+      afterItem: 1
     };
 
     const team = data.team;
@@ -367,71 +507,94 @@ const ExportUtility = {
 
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
-    doc.text(`AI Score: ${team.score ?? '-'}/9`, 20, y);
-    doc.text(`User Score: ${team.userScore ?? '-'}/9`, 90, y);
+    doc.text(`AI Score: ${team.score ?? '-'}/9`, PdfLayout.marginLeft, y);
+    doc.text(
+      `User Score: ${team.userScore ?? '-'}/9`,
+      PdfLayout.marginLeft + 75,
+      y
+    );
     y += 10;
 
     if (team.userJustification) {
       ensureSpace(30);
       doc.setFont(undefined, 'bold');
-      doc.text('User Justification:', 20, y);
+      doc.text('User Justification:', PdfLayout.marginLeft, y);
       y += 7;
 
       doc.setFont(undefined, 'normal');
-      const justificationLines = doc.splitTextToSize(team.userJustification, pageWidth - 40);
-      justificationLines.forEach(line => {
-        ensureSpace(10);
-        doc.text(line, 25, y);
-        y += 6;
-      });
+      y = PdfLayout.drawText(
+        doc,
+        team.userJustification,
+        PdfLayout.marginLeft,
+        y,
+        { maxWidth: contentWidth }
+      );
       y += 4;
     }
 
     // Composition summary
     ensureSpace(35);
     doc.setFont(undefined, 'bold');
-    doc.text('Team Composition', 20, y);
+    doc.text('Team Composition', PdfLayout.marginLeft, y);
     y += 8;
 
     doc.setFont(undefined, 'normal');
-    doc.text(`�?� Total Members: ${composition.total ?? members.length}`, 25, y);
+    y = PdfLayout.drawBulletList(
+      doc,
+      [
+        `Total Members: ${composition.total ?? members.length}`,
+        `Technical Experts: ${composition.technical ?? 0}`,
+        `Business Leaders: ${composition.business ?? 0}`,
+        `Domain Experts: ${composition.domain ?? 0}`
+      ],
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
     y += 6;
-    doc.text(`�?� Technical Experts: ${composition.technical ?? 0}`, 25, y);
-    y += 6;
-    doc.text(`�?� Business Leaders: ${composition.business ?? 0}`, 25, y);
-    y += 6;
-    doc.text(`�?� Domain Experts: ${composition.domain ?? 0}`, 25, y);
-    y += 10;
 
     const renderListSection = (title, items, maxItems = 5) => {
       ensureSpace(30);
       doc.setFont(undefined, 'bold');
-      doc.text(title, 20, y);
+      doc.text(title, PdfLayout.marginLeft, y);
       y += 8;
 
       doc.setFont(undefined, 'normal');
       if (!items || items.length === 0) {
-        doc.text('�?� None noted.', 25, y);
-        y += 6;
+        y = PdfLayout.drawBulletList(
+          doc,
+          ['None noted.'],
+          PdfLayout.marginLeft,
+          y,
+          bulletOptions
+        );
+        y += 4;
         return;
       }
 
       items.slice(0, maxItems).forEach(item => {
         const text = typeof item === 'string' ? item : JSON.stringify(item);
-        const lines = doc.splitTextToSize(`�?� ${text}`, pageWidth - 45);
-        lines.forEach(line => {
-          ensureSpace(10);
-          doc.text(line, 25, y);
-          y += 6;
-        });
+        y = PdfLayout.drawBulletList(
+          doc,
+          [text],
+          PdfLayout.marginLeft,
+          y,
+          bulletOptions
+        );
       });
 
       if (items.length > maxItems) {
-        doc.text(`...and ${items.length - maxItems} more`, 25, y);
-        y += 6;
+        y = PdfLayout.drawText(
+          doc,
+          `...and ${items.length - maxItems} more`,
+          PdfLayout.marginLeft,
+          y,
+          { maxWidth: contentWidth }
+        );
+        y += 4;
+      } else {
+        y += 4;
       }
-
-      y += 4;
     };
 
     renderListSection('Key Strengths', strengths);
@@ -441,60 +604,80 @@ const ExportUtility = {
     // Key members
     ensureSpace(35);
     doc.setFont(undefined, 'bold');
-    doc.text('Key Team Members', 20, y);
+    doc.text('Key Team Members', PdfLayout.marginLeft, y);
     y += 8;
 
     doc.setFont(undefined, 'normal');
     if (members.length === 0) {
-      doc.text('�?� No team members listed.', 25, y);
-      y += 6;
+      y = PdfLayout.drawBulletList(
+        doc,
+        ['No team members listed.'],
+        PdfLayout.marginLeft,
+        y,
+        bulletOptions
+      );
+      y += 4;
     } else {
+      const summarizeEntry = (value) => {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+          const parts = [];
+          Object.keys(value).forEach(key => {
+            const v = value[key];
+            if (v) parts.push(String(v));
+          });
+          return parts.join(' ');
+        }
+        return String(value);
+      };
+
+      const writeDetail = (label, value) => {
+        if (!value) return;
+        ensureSpace(15);
+        y = PdfLayout.drawText(
+          doc,
+          `${label}: ${value}`,
+          PdfLayout.marginLeft,
+          y,
+          { maxWidth: contentWidth }
+        );
+        y += 4;
+      };
+
       members.slice(0, 4).forEach(member => {
-        ensureSpace(35);
+        ensureSpace(40);
         doc.setFont(undefined, 'bold');
-        doc.text(member.name || 'Team Member', 25, y);
-        y += 6;
+        doc.text(member.name || 'Team Member', PdfLayout.marginLeft, y);
+        y += 7;
 
         doc.setFont(undefined, 'normal');
         if (member.role_at_venture) {
-          doc.text(`Role: ${member.role_at_venture}`, 25, y);
-          y += 6;
+          writeDetail('Role', member.role_at_venture);
         }
 
         const commercial = Array.isArray(member.commercialization_experience)
-          ? member.commercialization_experience.map(exp => {
-              if (typeof exp === 'string') return exp;
-              const parts = [];
-              if (exp.description) parts.push(exp.description);
-              if (exp.company) parts.push(`(${exp.company})`);
-              if (exp.outcome) parts.push(`- ${exp.outcome}`);
-              return parts.join(' ');
-            })
+          ? member.commercialization_experience.map(summarizeEntry).filter(Boolean)
           : [];
+        writeDetail('Commercial Experience', commercial[0]);
 
-        if (commercial.length > 0) {
-          const lines = doc.splitTextToSize(`Commercial Experience: ${commercial[0]}`, pageWidth - 60);
-          lines.forEach(line => {
-            doc.text(line, 25, y);
-            y += 5;
-          });
-        }
-
-        if (member.education_history && member.education_history.length > 0) {
-          const edu = member.education_history[0];
-          const eduText = typeof edu === 'string'
-            ? edu
-            : `${edu.degree || ''} ${edu.institution ? ` - ${edu.institution}` : ''}`.trim();
-          doc.text(`Education Highlight: ${eduText}`, 25, y);
-          y += 5;
-        }
+        const education = Array.isArray(member.education_history)
+          ? member.education_history.map(summarizeEntry).filter(Boolean)
+          : [];
+        writeDetail('Education Highlight', education[0]);
 
         y += 6;
       });
 
       if (members.length > 4) {
-        doc.text(`...and ${members.length - 4} additional team members`, 25, y);
-        y += 6;
+        y = PdfLayout.drawText(
+          doc,
+          `...and ${members.length - 4} additional team members`,
+          PdfLayout.marginLeft,
+          y,
+          { maxWidth: contentWidth }
+        );
+        y += 4;
       }
     }
 
@@ -503,22 +686,27 @@ const ExportUtility = {
     if (sources.length > 0) {
       ensureSpace(25);
       doc.setFont(undefined, 'bold');
-      doc.text('Primary Sources', 20, y);
+      doc.text('Primary Sources', PdfLayout.marginLeft, y);
       y += 8;
 
       doc.setFont(undefined, 'normal');
-      sources.slice(0, 5).forEach(source => {
-        const lines = doc.splitTextToSize(`�?� ${source}`, pageWidth - 45);
-        lines.forEach(line => {
-          ensureSpace(10);
-          doc.text(line, 25, y);
-          y += 6;
-        });
-      });
+      y = PdfLayout.drawBulletList(
+        doc,
+        sources.slice(0, 5),
+        PdfLayout.marginLeft,
+        y,
+        bulletOptions
+      );
 
       if (sources.length > 5) {
-        doc.text(`...and ${sources.length - 5} more`, 25, y);
-        y += 6;
+        y = PdfLayout.drawText(
+          doc,
+          `...and ${sources.length - 5} more`,
+          PdfLayout.marginLeft,
+          y,
+          { maxWidth: contentWidth }
+        );
+        y += 4;
       }
     }
   },
@@ -528,231 +716,298 @@ const ExportUtility = {
    */
   addCompetitiveAssessment(doc, data) {
     const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - PdfLayout.marginLeft - PdfLayout.marginRight;
     let y = 30;
+
+    const bulletOptions = {
+      bullet: '-',
+      lineHeight: PdfLayout.lineHeight(doc),
+      maxWidth: contentWidth,
+      afterItem: 1
+    };
 
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
-    doc.text('Competitive Risk Assessment', 20, y);
+    doc.text('Competitive Risk Assessment', PdfLayout.marginLeft, y);
     y += 15;
 
-    // Scores
     doc.setFontSize(12);
-    doc.text(`AI Score: ${data.competitive.assessment.score}/9`, 20, y);
-    doc.text(`User Score: ${data.competitive.userScore}/9`, 100, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(`AI Score: ${data.competitive.assessment.score}/9`, PdfLayout.marginLeft, y);
+    doc.text(`User Score: ${data.competitive.userScore}/9`, PdfLayout.marginLeft + 75, y);
     y += 10;
 
-    // User justification
     if (data.competitive.userJustification) {
-      doc.setFontSize(11);
+      y = PdfLayout.ensureSpace(doc, y, 30);
       doc.setFont(undefined, 'bold');
-      doc.text('User Justification:', 20, y);
+      doc.text('User Justification:', PdfLayout.marginLeft, y);
       y += 7;
-      
+
       doc.setFont(undefined, 'normal');
-      const justLines = doc.splitTextToSize(data.competitive.userJustification, pageWidth - 40);
-      doc.text(justLines, 20, y);
-      y += justLines.length * 5 + 10;
+      y = PdfLayout.drawText(
+        doc,
+        data.competitive.userJustification,
+        PdfLayout.marginLeft,
+        y,
+        { maxWidth: contentWidth }
+      );
+      y += 6;
     }
 
-    // AI reasoning
     doc.setFont(undefined, 'bold');
-    doc.text('AI Assessment:', 20, y);
+    doc.text('AI Assessment:', PdfLayout.marginLeft, y);
     y += 7;
-    
-    doc.setFont(undefined, 'normal');
-    const aiLines = doc.splitTextToSize(
-      data.competitive.assessment.score_justification || 'No justification provided',
-      pageWidth - 40
-    );
-    doc.text(aiLines, 20, y);
-    y += aiLines.length * 5 + 10;
 
-    // Key risks
-    if (y < 200) {
+    doc.setFont(undefined, 'normal');
+    y = PdfLayout.drawText(
+      doc,
+      data.competitive.assessment.score_justification || 'No justification provided',
+      PdfLayout.marginLeft,
+      y,
+      { maxWidth: contentWidth }
+    );
+    y += 8;
+
+    const risks = data.competitive.assessment.key_risk_factors || [];
+    if (risks.length > 0) {
+      y = PdfLayout.ensureSpace(doc, y, 30);
       doc.setFont(undefined, 'bold');
-      doc.text('Key Risks:', 20, y);
+      doc.text('Key Risks:', PdfLayout.marginLeft, y);
       y += 7;
-      
+
       doc.setFont(undefined, 'normal');
-      const risks = data.competitive.assessment.key_risk_factors || [];
-      risks.slice(0, 5).forEach(risk => {
-        const riskLines = doc.splitTextToSize(`• ${risk}`, pageWidth - 45);
-        doc.text(riskLines, 25, y);
-        y += riskLines.length * 5 + 2;
-      });
+      y = PdfLayout.drawBulletList(
+        doc,
+        risks.slice(0, 5),
+        PdfLayout.marginLeft,
+        y,
+        bulletOptions
+      );
     }
   },
-
   /**
    * Add market assessment page
    */
   addMarketAssessment(doc, data) {
-      const pageWidth = doc.internal.pageSize.width;
-      let y = 30;
-  
-      doc.setFontSize(18);
+    const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - PdfLayout.marginLeft - PdfLayout.marginRight;
+    let y = 30;
+
+    const bulletOptions = {
+      bullet: '-',
+      lineHeight: PdfLayout.lineHeight(doc),
+      maxWidth: contentWidth,
+      afterItem: 1
+    };
+
+    doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
-    doc.text('Market Opportunity Assessment', 20, y);
+    doc.text('Market Opportunity Assessment', PdfLayout.marginLeft, y);
     y += 15;
 
-    // Scores
     doc.setFontSize(12);
-    doc.text(`AI Score: ${data.market.scoring.score}/9`, 20, y);
-    doc.text(`User Score: ${data.market.userScore}/9`, 100, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(`AI Score: ${data.market.scoring.score}/9`, PdfLayout.marginLeft, y);
+    doc.text(`User Score: ${data.market.userScore}/9`, PdfLayout.marginLeft + 75, y);
     y += 10;
 
-    // User justification
     if (data.market.userJustification) {
-      doc.setFontSize(11);
+      y = PdfLayout.ensureSpace(doc, y, 30);
       doc.setFont(undefined, 'bold');
-      doc.text('User Justification:', 20, y);
+      doc.text('User Justification:', PdfLayout.marginLeft, y);
       y += 7;
-      
+
       doc.setFont(undefined, 'normal');
-      const justLines = doc.splitTextToSize(data.market.userJustification, pageWidth - 40);
-      doc.text(justLines, 20, y);
-      y += justLines.length * 5 + 10;
+      y = PdfLayout.drawText(
+        doc,
+        data.market.userJustification,
+        PdfLayout.marginLeft,
+        y,
+        { maxWidth: contentWidth }
+      );
+      y += 6;
     }
 
-    // AI reasoning
     doc.setFont(undefined, 'bold');
-    doc.text('AI Assessment:', 20, y);
+    doc.text('AI Assessment:', PdfLayout.marginLeft, y);
     y += 7;
-    
+
     doc.setFont(undefined, 'normal');
-    const aiLines = doc.splitTextToSize(
+    y = PdfLayout.drawText(
+      doc,
       data.market.scoring.justification?.summary || 'No justification provided',
-      pageWidth - 40
+      PdfLayout.marginLeft,
+      y,
+      { maxWidth: contentWidth }
     );
-    doc.text(aiLines, 20, y);
-    y += aiLines.length * 5 + 10;
+    y += 8;
 
-    // Market details
     doc.setFont(undefined, 'bold');
-    doc.text('Primary Market:', 20, y);
+    doc.text('Primary Market:', PdfLayout.marginLeft, y);
     y += 7;
-    
+
     doc.setFont(undefined, 'normal');
-    doc.text(`• TAM: ${Formatters.currency(data.market.analysis.primary_market.tam_usd)}`, 25, y);
-    y += 7;
-    doc.text(`• CAGR: ${Formatters.percentage(data.market.analysis.primary_market.cagr_percent)}`, 25, y);
-    y += 7;
-      doc.text(`• Description: ${data.market.analysis.primary_market.description}`, 25, y);
-    },
+    const primaryMarket = data.market.analysis.primary_market || {};
+    y = PdfLayout.drawBulletList(
+      doc,
+      [
+        `TAM: ${Formatters.currency(primaryMarket.tam_usd)}`,
+        `CAGR: ${Formatters.percentage(primaryMarket.cagr_percent)}`,
+        primaryMarket.description ? `Description: ${primaryMarket.description}` : null
+      ].filter(Boolean),
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+  },
+  /**
+   * Add IP risk assessment page
+   */
+  addIpRiskAssessment(doc, data) {
+    const pageWidth = doc.internal.pageSize.width;
+    const contentWidth = pageWidth - PdfLayout.marginLeft - PdfLayout.marginRight;
+    let y = 30;
 
-    /**
-     * Add IP risk assessment page
-     */
-    addIpRiskAssessment(doc, data) {
-      const pageWidth = doc.internal.pageSize.width;
-      let y = 30;
+    const bulletOptions = {
+      bullet: '-',
+      lineHeight: PdfLayout.lineHeight(doc),
+      maxWidth: contentWidth,
+      afterItem: 1
+    };
 
-      const iprisk = data.iprisk;
-      const formatted = iprisk.formatted || {};
+    const iprisk = data.iprisk;
+    const formatted = iprisk.formatted || {};
 
-      const ensureSpace = (padding = 20) => {
-        if (y > 280 - padding) {
-          doc.addPage();
-          y = 30;
-        }
-      };
+    const ensureSpace = (padding = 20) => {
+      y = PdfLayout.ensureSpace(doc, y, padding);
+    };
 
-      const renderParagraph = (text) => {
-        const content = text || 'No information provided.';
-        const lines = doc.splitTextToSize(content, pageWidth - 40);
-        lines.forEach(line => {
-          ensureSpace(10);
-          doc.text(line, 20, y);
-          y += 5;
-        });
-        y += 5;
-      };
+    const renderParagraph = (text) => {
+      const content = text || 'No information provided.';
+      ensureSpace(20);
+      y = PdfLayout.drawText(
+        doc,
+        content,
+        PdfLayout.marginLeft,
+        y,
+        { maxWidth: contentWidth }
+      );
+      y += 6;
+    };
 
-      const renderList = (title, items) => {
-        ensureSpace(20);
-        doc.setFont(undefined, 'bold');
-        doc.text(title, 20, y);
-        y += 7;
-
-        doc.setFont(undefined, 'normal');
-        if (!items || items.length === 0) {
-          doc.text('• None noted', 25, y);
-          y += 6;
-          return;
-        }
-
-        items.slice(0, 8).forEach(item => {
-          const line = `• ${item}`;
-          const lines = doc.splitTextToSize(line, pageWidth - 45);
-          lines.forEach(textLine => {
-            ensureSpace(10);
-            doc.text(textLine, 25, y);
-            y += 5;
-          });
-          y += 1;
-        });
-        y += 4;
-      };
-
-      doc.setFontSize(18);
+    const renderList = (title, items, limit = 8) => {
+      ensureSpace(25);
       doc.setFont(undefined, 'bold');
-      doc.text('IP Risk Assessment', 20, y);
-      y += 15;
-
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'normal');
-      doc.text(`AI Score: ${iprisk.score ?? '-'}/9`, 20, y);
-      doc.text(`User Score: ${iprisk.userScore ?? '-'}/9`, 100, y);
-      y += 10;
-
-      const riskLevel = Formatters.titleCase(formatted.riskLevel || 'Unknown');
-      const dataConfidence = formatted.dataConfidence !== null && formatted.dataConfidence !== undefined
-        ? `${Math.round(formatted.dataConfidence * 100)}%`
-        : 'Unknown';
-      doc.text(`Risk Level: ${riskLevel}`, 20, y);
+      doc.text(title, PdfLayout.marginLeft, y);
       y += 7;
-      doc.text(`Data Confidence: ${dataConfidence}`, 20, y);
-      y += 10;
 
-      if (iprisk.userJustification) {
-        doc.setFont(undefined, 'bold');
-        doc.text('User Justification:', 20, y);
-        y += 7;
-        doc.setFont(undefined, 'normal');
-        renderParagraph(iprisk.userJustification);
+      doc.setFont(undefined, 'normal');
+      if (!items || items.length === 0) {
+        y = PdfLayout.drawBulletList(
+          doc,
+          ['None noted'],
+          PdfLayout.marginLeft,
+          y,
+          bulletOptions
+        );
+        y += 4;
+        return;
       }
 
+      y = PdfLayout.drawBulletList(
+        doc,
+        items.slice(0, limit),
+        PdfLayout.marginLeft,
+        y,
+        bulletOptions
+      );
+
+      if (items.length > limit) {
+        y = PdfLayout.drawText(
+          doc,
+          `...and ${items.length - limit} more`,
+          PdfLayout.marginLeft,
+          y,
+          { maxWidth: contentWidth }
+        );
+        y += 4;
+      }
+    };
+
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('IP Risk Assessment', PdfLayout.marginLeft, y);
+    y += 15;
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`AI Score: ${iprisk.score ?? '-'}/9`, PdfLayout.marginLeft, y);
+    doc.text(`User Score: ${iprisk.userScore ?? '-'}/9`, PdfLayout.marginLeft + 75, y);
+    y += 10;
+
+    const riskLevel = Formatters.titleCase(formatted.riskLevel || 'Unknown');
+    const dataConfidence = formatted.dataConfidence !== null && formatted.dataConfidence !== undefined
+      ? `${Math.round(formatted.dataConfidence * 100)}%`
+      : 'Unknown';
+    y = PdfLayout.drawBulletList(
+      doc,
+      [
+        `Risk Level: ${riskLevel}`,
+        `Data Confidence: ${dataConfidence}`
+      ],
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y += 4;
+
+    if (iprisk.userJustification) {
       doc.setFont(undefined, 'bold');
-      doc.text('Company IP Position:', 20, y);
+      doc.text('User Justification:', PdfLayout.marginLeft, y);
       y += 7;
       doc.setFont(undefined, 'normal');
-      renderParagraph(formatted.companyIP?.description || formatted.companyCurrentIP?.description);
+      renderParagraph(iprisk.userJustification);
+    }
 
-      doc.setFont(undefined, 'bold');
-      doc.text('AI Assessment:', 20, y);
-      y += 7;
-      doc.setFont(undefined, 'normal');
-      renderParagraph(formatted.riskAnalysis);
+    doc.setFont(undefined, 'bold');
+    doc.text('Company IP Position:', PdfLayout.marginLeft, y);
+    y += 7;
+    doc.setFont(undefined, 'normal');
+    renderParagraph(formatted.companyIP?.description || formatted.companyCurrentIP?.description);
 
-      renderList('Key IP Challenges', formatted.challenges || []);
-      renderList('Unique Protectable Features', formatted.uniqueFeatures || []);
-      renderList('Crowded Feature Areas', formatted.crowdedFeatures || []);
-    },
+    doc.setFont(undefined, 'bold');
+    doc.text('AI Assessment:', PdfLayout.marginLeft, y);
+    y += 7;
+    doc.setFont(undefined, 'normal');
+    renderParagraph(formatted.riskAnalysis);
+
+    renderList('Key IP Challenges', formatted.challenges || []);
+    renderList('Unique Protectable Features', formatted.uniqueFeatures || []);
+    renderList('Crowded Feature Areas', formatted.crowdedFeatures || []);
+  },
 
   /**
    * Add appendix cover page
    */
   addAppendixCover(doc) {
     const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
 
-    doc.setFontSize(24);
+    doc.setFontSize(26);
     doc.setFont(undefined, 'bold');
-    doc.text('APPENDIX', pageWidth / 2, pageHeight / 2 - 20, { align: 'center' });
+    doc.text('Appendix', pageWidth / 2, 80, { align: 'center' });
 
     doc.setFontSize(14);
     doc.setFont(undefined, 'normal');
-    doc.text('Detailed Analysis Data', pageWidth / 2, pageHeight / 2, { align: 'center' });
+    doc.text(
+      'Detailed assessment data and supporting analysis',
+      pageWidth / 2,
+      100,
+      { align: 'center' }
+    );
+
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.5);
+    doc.line(60, 110, pageWidth - 60, 110);
   },
 
   /**
@@ -876,7 +1131,7 @@ const ExportUtility = {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       if (!items || items.length === 0) {
-        doc.text(`�?� ${emptyLabel}`, 25, y);
+        doc.text(`- ${emptyLabel}`, 25, y);
         y += 6;
         return;
       }
@@ -884,7 +1139,7 @@ const ExportUtility = {
       const entries = maxItems ? items.slice(0, maxItems) : items;
       entries.forEach(item => {
         const text = formatter(item);
-        const lines = doc.splitTextToSize(`�?� ${text}`, pageWidth - 50);
+        const lines = doc.splitTextToSize(`- ${text}`, pageWidth - 50);
         lines.forEach(line => {
           ensureSpace(10);
           doc.text(line, 25, y);
@@ -907,13 +1162,13 @@ const ExportUtility = {
 
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(`�?� Total Members: ${composition.total ?? members.length}`, 25, y);
+    doc.text(`- Total Members: ${composition.total ?? members.length}`, 25, y);
     y += 5;
-    doc.text(`�?� Technical Experts: ${composition.technical ?? 0}`, 25, y);
+    doc.text(`- Technical Experts: ${composition.technical ?? 0}`, 25, y);
     y += 5;
-    doc.text(`�?� Business Leaders: ${composition.business ?? 0}`, 25, y);
+    doc.text(`- Business Leaders: ${composition.business ?? 0}`, 25, y);
     y += 5;
-    doc.text(`�?� Domain Experts: ${composition.domain ?? 0}`, 25, y);
+    doc.text(`- Domain Experts: ${composition.domain ?? 0}`, 25, y);
     y += 10;
 
     renderList(
@@ -1048,7 +1303,7 @@ const ExportUtility = {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       sources.forEach(source => {
-        const lines = doc.splitTextToSize(`�?� ${source}`, pageWidth - 50);
+        const lines = doc.splitTextToSize(`- ${source}`, pageWidth - 50);
         lines.forEach(line => {
           ensureSpace(10);
           doc.text(line, 25, y);
@@ -1079,7 +1334,7 @@ const ExportUtility = {
     `Confidence Level: ${competitive.analysis.data_quality?.confidence_level || 'N/A'}`,
     '',
     'Market Leaders:',
-    ...competitive.assessment.market_leaders.slice(0, 5).map(leader => `  • ${leader}`),
+    ...competitive.assessment.market_leaders.slice(0, 5).map(leader => `  - ${leader}`),
   ];
 
   details.forEach(line => {
@@ -1151,7 +1406,7 @@ const ExportUtility = {
       doc.addPage();
       y = 30;
     }
-    const riskLines = doc.splitTextToSize(`• ${risk}`, 170);
+    const riskLines = doc.splitTextToSize(`- ${risk}`, 170);
     riskLines.forEach(line => {
       doc.text(line, 25, y);
       y += 5;
@@ -1228,7 +1483,7 @@ const ExportUtility = {
       doc.addPage();
       y = 30;
     }
-      const oppLines = doc.splitTextToSize(`• ${opp}`, 170);
+      const oppLines = doc.splitTextToSize(`- ${opp}`, 170);
       oppLines.forEach(line => {
         doc.text(line, 25, y);
         y += 5;
@@ -1282,13 +1537,13 @@ const ExportUtility = {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       if (!items || items.length === 0) {
-        doc.text('• None noted', 25, y);
+        doc.text('- None noted', 25, y);
         y += 6;
         return;
       }
 
       items.forEach(item => {
-        const lines = doc.splitTextToSize(`• ${item}`, pageWidth - 45);
+        const lines = doc.splitTextToSize(`- ${item}`, pageWidth - 45);
         lines.forEach(line => {
           ensureSpace(10);
           doc.text(line, 25, y);
@@ -1346,3 +1601,13 @@ const ExportUtility = {
 
 // Make available globally
 window.ExportUtility = ExportUtility;
+
+
+
+
+
+
+
+
+
+

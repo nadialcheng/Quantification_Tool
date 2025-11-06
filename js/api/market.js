@@ -127,8 +127,14 @@ const MarketAPI = {
       return null;
     }
 
-    const trimmed = rawOutput.trim();
+    let trimmed = rawOutput.trim();
     if (!trimmed) return null;
+
+    // Remove common code fences or YAML markers
+    trimmed = trimmed
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```$/i, '')
+      .replace(/^---\s*$/, '');
 
     const attemptParse = (text) => {
       try {
@@ -148,8 +154,88 @@ const MarketAPI = {
       if (parsed) return parsed;
     }
 
+    // Attempt to repair truncated JSON by balancing brackets/braces
+    const repaired = this.repairJsonString(trimmed);
+    if (repaired) {
+      parsed = attemptParse(repaired);
+      if (parsed) return parsed;
+    }
+
+    // Try progressively trimming trailing characters in case of appended commentary
+    if (start !== -1) {
+      for (let cursor = trimmed.length - 1; cursor > start + 1; cursor -= 1) {
+        const candidate = trimmed.slice(start, cursor);
+        const attempt = attemptParse(candidate);
+        if (attempt) return attempt;
+      }
+    }
+
     console.error(`Failed to parse ${label}:`, trimmed);
     return null;
+  },
+
+  /**
+   * Attempt to balance unmatched braces/brackets in malformed JSON text
+   */
+  repairJsonString(text) {
+    if (!text) return null;
+
+    const stack = [];
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+
+      if (inString) {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (char === '\\') {
+          escape = true;
+          continue;
+        }
+        if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (char === '{') {
+        stack.push('}');
+      } else if (char === '[') {
+        stack.push(']');
+      } else if (char === '}' || char === ']') {
+        if (stack.length === 0) {
+          // Extra closing bracket; drop it
+          text = text.slice(0, i) + text.slice(i + 1);
+          i -= 1;
+        } else {
+          const expected = stack.pop();
+          if ((char === '}' && expected !== '}') || (char === ']' && expected !== ']')) {
+            // Mismatched closing token
+            return null;
+          }
+        }
+      }
+    }
+
+    if (inString) {
+      // Close unbalanced string
+      text += '"';
+    }
+
+    if (stack.length > 0) {
+      text += stack.reverse().join('');
+    }
+
+    return text;
   },
 
   /**
