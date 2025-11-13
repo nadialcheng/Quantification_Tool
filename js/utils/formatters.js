@@ -277,19 +277,44 @@ const Formatters = {
     if (!count || typeof count !== 'object') {
       return 'No data available';
     }
-    
+
     const parts = [];
-    
-    if (count.large_companies > 0) {
-      parts.push(`${count.large_companies} Large`);
+    const hasRangeFields = ['startups_range', 'midsize_range', 'large_range', 'total_range']
+      .some(key => count[key]);
+
+    if (hasRangeFields) {
+      const addRange = (label, value) => {
+        if (!value) return;
+        const trimmed = String(value).trim();
+        if (trimmed) {
+          parts.push(`${label}: ${trimmed}`);
+        }
+      };
+
+      addRange('Startups', count.startups_range);
+      addRange('Mid-size', count.midsize_range);
+      addRange('Large', count.large_range);
+      addRange('Total', count.total_range);
+
+      if (count.geographic_scope) {
+        parts.push(`Scope: ${count.geographic_scope}`);
+      }
     }
-    if (count.mid_size_companies > 0) {
-      parts.push(`${count.mid_size_companies} Mid-size`);
+
+    const addNumeric = (label, value) => {
+      const num = Number(value);
+      if (!Number.isNaN(num) && num > 0) {
+        parts.push(`${num} ${label}`);
+      }
+    };
+
+    if (!hasRangeFields || parts.length === 0) {
+      addNumeric('Large', count.large_companies);
+      addNumeric('Mid-size', count.mid_size_companies);
+      addNumeric('Startups', count.startups);
+      addNumeric('Total', count.total);
     }
-    if (count.startups > 0) {
-      parts.push(`${count.startups} Startups`);
-    }
-    
+
     return parts.length > 0 ? parts.join(', ') : 'No competitors identified';
   },
 

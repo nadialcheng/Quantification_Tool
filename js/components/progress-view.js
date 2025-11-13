@@ -140,7 +140,8 @@ class ProgressView {
     // Update time display
     if (this.elements.time) {
       const elapsed = Formatters.duration(progress.elapsed);
-      const estimated = Formatters.duration(progress.estimated);
+      const estimatedSeconds = Math.min(progress.estimated, 15 * 60);
+      const estimated = Formatters.duration(estimatedSeconds);
       this.elements.time.textContent = `${elapsed} / ${estimated}`;
     }
   }
@@ -242,7 +243,7 @@ class ProgressView {
     }
 
     if (this.elements.time) {
-      this.elements.time.textContent = '0:00 / 30:00';
+      this.elements.time.textContent = '0:00 / 15:00';
     }
   }
 }

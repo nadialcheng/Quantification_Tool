@@ -150,13 +150,68 @@ const CompetitiveAPI = {
       }
     }
 
-    // Ensure assessment structure
-    if (!assessment.competitor_count) {
+    // Normalize market overview totals
+    if (!analysis.market_overview) {
+      analysis.market_overview = {};
+    }
+    const overview = analysis.market_overview;
+
+    const defaultTotals = {
+      startups_range: '',
+      midsize_range: '',
+      large_range: '',
+      total_range: '',
+      geographic_scope: 'Global'
+    };
+
+    if (!overview.total_competitors || typeof overview.total_competitors !== 'object') {
+      overview.total_competitors = { ...defaultTotals };
+    } else {
+      overview.total_competitors = {
+        ...defaultTotals,
+        ...overview.total_competitors
+      };
+    }
+
+    const totals = overview.total_competitors;
+    const normalizeRange = (value) => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'number') return value.toString();
+      return String(value).trim();
+    };
+
+    const legacyCounts = assessment.competitor_count;
+    if (legacyCounts && typeof legacyCounts === 'object') {
+      if (!totals.startups_range) totals.startups_range = normalizeRange(legacyCounts.startups);
+      if (!totals.midsize_range) totals.midsize_range = normalizeRange(legacyCounts.mid_size_companies);
+      if (!totals.large_range) totals.large_range = normalizeRange(legacyCounts.large_companies);
+      if (!totals.total_range) totals.total_range = normalizeRange(legacyCounts.total);
+    }
+
+    if (!overview.job_to_be_done) {
+      overview.job_to_be_done = 'Not specified';
+    }
+    if (!overview.market_dynamics) {
+      overview.market_dynamics = 'Not provided';
+    }
+
+    const rangeToNumber = (range) => {
+      if (!range || typeof range !== 'string') return 0;
+      const matches = range.match(/[\d.]+/g);
+      if (!matches || matches.length === 0) return 0;
+      if (matches.length === 1) return Number(matches[0]) || 0;
+      const low = Number(matches[0]) || 0;
+      const high = Number(matches[1]) || low;
+      return Math.round((low + high) / 2);
+    };
+
+    // Ensure assessment structure (maintain backward compatibility)
+    if (!assessment.competitor_count || typeof assessment.competitor_count !== 'object') {
       assessment.competitor_count = {
-        total: 0,
-        large_companies: 0,
-        mid_size_companies: 0,
-        startups: 0
+        total: rangeToNumber(totals.total_range),
+        large_companies: rangeToNumber(totals.large_range),
+        mid_size_companies: rangeToNumber(totals.midsize_range),
+        startups: rangeToNumber(totals.startups_range)
       };
     } else {
       const counts = assessment.competitor_count;
@@ -186,15 +241,24 @@ const CompetitiveAPI = {
     // Extract competitor details
     const competitors = (analysis.competitors || []).map(comp => ({
       name: comp.company_name || 'Unknown',
-      size: comp.size_category || 'Unknown',
+      size: comp.companySize || comp.size_category || 'Unknown',
       product: comp.product_name || '',
       description: comp.product_description || '',
       strengths: comp.strengths || [],
       weaknesses: comp.weaknesses || [],
       revenue: comp.revenue || 'Unknown',
       funding: comp.funding_raised || 'N/A',
-      position: comp.market_position || 'Unknown'
+      position: comp.market_position || 'Unknown',
+      competitorType: comp.competitorType || ''
     }));
+
+    const overview = analysis.market_overview || {};
+    const totals = overview.total_competitors || null;
+    const numericCounts = assessment.competitor_count || null;
+    const competitorCount = {
+      ...(numericCounts || {}),
+      ...(totals || {})
+    };
 
     // Build formatted response
     return {
@@ -204,9 +268,19 @@ const CompetitiveAPI = {
       rubricMatch: assessment.rubric_match_explanation || '',
       
       // Competitor metrics
-      competitorCount: assessment.competitor_count,
-      totalCompetitors: assessment.competitor_count.total,
+      competitorCount,
+      totalCompetitors:
+        totals?.total_range ??
+        totals?.total ??
+        competitorCount?.total ??
+        assessment.competitor_count?.total ??
+        null,
       competitors: competitors.slice(0, 10), // Top 10
+      marketOverview: {
+        jobToBeDone: overview.job_to_be_done || '',
+        marketDynamics: overview.market_dynamics || '',
+        geographicScope: totals?.geographic_scope || overview.geographic_scope || ''
+      },
       
       // Market analysis
       marketLeaders: assessment.market_leaders || [],

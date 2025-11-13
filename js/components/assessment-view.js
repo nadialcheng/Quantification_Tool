@@ -687,11 +687,22 @@ class AssessmentView {
     const peerDeals = Array.isArray(data.peerDeals) ? data.peerDeals : [];
     const fundingDetails = Array.isArray(data.fundingDetails) ? data.fundingDetails : [];
 
-    const formatFundingAmount = (amount, currency = 'USD') => {
+    const formatFundingAmount = (amount, currency = 'USD', options = {}) => {
       if (amount === null || amount === undefined) return 'Undisclosed';
-      if (typeof amount === 'number') {
-        return `${Formatters.currency(amount)} ${currency !== 'USD' ? currency : ''}`.trim();
+
+      const numericValue = typeof amount === 'number'
+        ? amount
+        : (typeof amount === 'string'
+          ? parseFloat(amount.replace(/[^\d.-]/g, ''))
+          : NaN);
+
+      if (!isNaN(numericValue)) {
+        const assumeMillions = Boolean(options.assumeMillions);
+        const normalizedValue = assumeMillions ? numericValue * 1000000 : numericValue;
+        const formatted = Formatters.currency(normalizedValue);
+        return `${formatted} ${currency && currency !== 'USD' ? currency : ''}`.trim();
       }
+
       return sanitizeText(amount, 'Undisclosed');
     };
 
@@ -721,7 +732,7 @@ class AssessmentView {
           const company = sanitizeText(deal.company || 'Unknown Company', 'Unknown Company');
           const date = Formatters.date(deal.date);
           const series = sanitizeText(deal.series || 'N/A', 'N/A');
-          const amount = formatFundingAmount(deal.amount, deal.currency);
+          const amount = formatFundingAmount(deal.amount, deal.currency, { assumeMillions: true });
           const investorList = Array.isArray(deal.investors)
             ? deal.investors.map(inv => sanitizeText(inv, '')).filter(Boolean)
             : [];
@@ -960,6 +971,30 @@ class AssessmentView {
           `).join('')}</ul>`
       : '<p class="empty-item">No major patent holders identified.</p>';
 
+    const formatPatentTitle = (patent) => {
+      const cleanTitle = typeof patent.title === 'string' ? patent.title.trim() : '';
+      const cleanAssignee = typeof patent.assignee === 'string' ? patent.assignee.trim() : '';
+
+      if (cleanTitle) {
+        return {
+          title: Formatters.escapeHTML(cleanTitle),
+          showAssignee: !cleanAssignee || cleanAssignee.toLowerCase() !== cleanTitle.toLowerCase()
+        };
+      }
+
+      if (cleanAssignee) {
+        return {
+          title: Formatters.escapeHTML(cleanAssignee),
+          showAssignee: false
+        };
+      }
+
+      return {
+        title: 'Untitled Patent',
+        showAssignee: false
+      };
+    };
+
     const formatPatentList = (patents) => {
       if (!Array.isArray(patents) || patents.length === 0) {
         return '<p class="empty-item">No patents listed.</p>';
@@ -967,13 +1002,14 @@ class AssessmentView {
 
       return `<ul>${patents.map(patent => {
         const id = Formatters.escapeHTML(patent.patentID || 'Unknown ID');
-        const title = Formatters.escapeHTML(patent.title || 'Untitled Patent');
         const assignee = Formatters.escapeHTML(patent.assignee || 'Unknown Assignee');
         const year = patent.year ? ` (${patent.year})` : '';
         const link = patent.link
           ? `<a href="${patent.link}" target="_blank" rel="noopener">${id}</a>`
           : id;
-        return `<li>${link}${year} - ${title} <em>${assignee}</em></li>`;
+        const { title, showAssignee } = formatPatentTitle(patent);
+        const assigneeLabel = showAssignee ? ` <em>${assignee}</em>` : '';
+        return `<li>${link}${year} - ${title}${assigneeLabel}</li>`;
       }).join('')}</ul>`;
     };
 
