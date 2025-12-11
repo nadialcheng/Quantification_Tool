@@ -469,9 +469,10 @@ const ExportUtility = {
     const ipRiskConfidence = typeof iprisk.dataConfidence === 'number'
       ? `${Math.round(iprisk.dataConfidence * 100)}%`
       : 'Unknown';
-    const fundingConfidence = typeof funding.confidence === 'number'
-      ? Formatters.confidence(funding.confidence)
-      : 'Not available';
+    const fundingConfidence = Formatters.confidence(funding.confidence);
+    const fundingConfidenceNote = funding.confidenceJustification
+      ? TextSanitizer.clean(funding.confidenceJustification)
+      : '';
     const totalPeerDeals = funding.totalPeerDeals ?? (funding.peerDeals ? funding.peerDeals.length : 0);
 
     const metricSections = [
@@ -489,7 +490,8 @@ const ExportUtility = {
           `Prior Funding Secured: ${funding.hasPriorFunding ? 'Yes' : 'No'}`,
           `Funding Rounds Identified: ${funding.totalFundingRounds ?? 0}`,
           `Comparable Market Deals: ${totalPeerDeals}`,
-          `Funding Data Confidence: ${fundingConfidence}`
+          `Funding Data Confidence: ${fundingConfidence}`,
+          ...(fundingConfidenceNote ? [`Confidence Rationale: ${fundingConfidenceNote}`] : [])
         ]
       },
       {
@@ -538,14 +540,21 @@ const ExportUtility = {
     const teamConfidence = teamFormatted.confidence !== undefined && teamFormatted.confidence !== null
       ? Formatters.confidence(teamFormatted.confidence)
       : 'Not available';
+    const teamConfidenceNote = teamFormatted.confidenceJustification
+      ? TextSanitizer.clean(teamFormatted.confidenceJustification)
+      : '';
+    const teamSummaryBullets = [
+      `Team Size: ${teamMembersCount}`,
+      `Technical Experts: ${teamComposition.technical ?? 0} | Business Leaders: ${teamComposition.business ?? 0}`,
+      `Team Assessment Confidence: ${teamConfidence}`
+    ];
+    if (teamConfidenceNote) {
+      teamSummaryBullets.push(`Confidence Rationale: ${teamConfidenceNote}`);
+    }
 
     y = PdfLayout.drawBulletList(
       doc,
-      [
-        `Team Size: ${teamMembersCount}`,
-        `Technical Experts: ${teamComposition.technical ?? 0} | Business Leaders: ${teamComposition.business ?? 0}`,
-        `Team Assessment Confidence: ${teamConfidence}`
-      ],
+      teamSummaryBullets,
       PdfLayout.marginLeft,
       y,
       bulletOptions
@@ -565,7 +574,8 @@ const ExportUtility = {
     const fundingSummary = [
       `Funding Rounds: ${funding.totalFundingRounds ?? 0}`,
       `Comparable Deals Reviewed: ${totalPeerDeals}`,
-      `Funding Confidence: ${fundingConfidence}`
+      `Funding Confidence: ${fundingConfidence}`,
+      ...(fundingConfidenceNote ? [`Confidence Rationale: ${fundingConfidenceNote}`] : [])
     ];
     y = PdfLayout.drawBulletList(
       doc,
@@ -676,6 +686,34 @@ const ExportUtility = {
       );
       y += 4;
     }
+
+    // Data confidence summary
+    const confidenceLevel = Formatters.confidence(formatted.confidence);
+    const confidenceNote = formatted.confidenceJustification
+      ? TextSanitizer.clean(formatted.confidenceJustification)
+      : '';
+
+    ensureSpace(25);
+    doc.setFont(undefined, 'bold');
+    doc.text('Data Confidence', PdfLayout.marginLeft, y);
+    y += 8;
+
+    doc.setFont(undefined, 'normal');
+    const confidenceBullets = [
+      `Confidence Level: ${confidenceLevel}`
+    ];
+    if (confidenceNote) {
+      confidenceBullets.push(`Rationale: ${confidenceNote}`);
+    }
+
+    y = PdfLayout.drawBulletList(
+      doc,
+      confidenceBullets,
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y += 4;
 
     // Composition summary
     ensureSpace(35);
@@ -1283,6 +1321,34 @@ const ExportUtility = {
 
       y += 4;
     };
+
+    const confidenceLevel = Formatters.confidence(formatted.confidence);
+    const confidenceNote = formatted.confidenceJustification
+      ? TextSanitizer.clean(formatted.confidenceJustification)
+      : '';
+
+    ensureSpace(30);
+    PdfTypography.heading(doc);
+    doc.text('Data Confidence', 20, y);
+    y += 8;
+
+    PdfTypography.body(doc);
+    doc.text(`- Confidence Level: ${confidenceLevel}`, 25, y);
+    y += 6;
+
+    if (confidenceNote) {
+      const lines = doc.splitTextToSize(`- Rationale: ${confidenceNote}`, pageWidth - 50);
+      lines.forEach(line => {
+        ensureSpace(10);
+        doc.text(line, 25, y);
+        y += 5;
+      });
+    } else {
+      doc.text('- Rationale: Not provided.', 25, y);
+      y += 6;
+    }
+
+    y += 4;
 
     PdfTypography.heading(doc);
     doc.text('Summary', 20, y);

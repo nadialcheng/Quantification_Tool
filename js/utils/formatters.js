@@ -39,11 +39,48 @@ const Formatters = {
    */
   confidence(value) {
     if (value === null || value === undefined) return 'Not available';
+
+    if (typeof value === 'object') {
+      const nested =
+        value.level ?? value.value ?? value.label ?? value.text ?? value.description;
+      if (nested !== undefined) {
+        return this.confidence(nested);
+      }
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return 'Not available';
+
+      const normalized = trimmed.toLowerCase();
+      const labelMap = {
+        low: 'Low',
+        medium: 'Medium',
+        mid: 'Medium',
+        med: 'Medium',
+        high: 'High',
+        veryhigh: 'Very High',
+        very_high: 'Very High',
+        verylow: 'Very Low',
+        very_low: 'Very Low'
+      };
+
+      if (labelMap[normalized]) {
+        return labelMap[normalized];
+      }
+
+      const numeric = parseFloat(trimmed);
+      if (!isNaN(numeric)) {
+        return this.confidence(numeric);
+      }
+
+      return this.titleCase(trimmed);
+    }
     
     const num = parseFloat(value);
     if (isNaN(num)) return 'Not available';
     
-    const normalized = Math.max(0, Math.min(1, num));
+    const normalized = Math.max(0, Math.min(1, num <= 1 ? num : num / 100));
     const percentage = (normalized * 100).toFixed(0);
     
     let descriptor = '';

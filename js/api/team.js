@@ -171,8 +171,21 @@ const TeamAPI = {
   ensureRequiredFields(team, scoring) {
     team.team_members = Array.isArray(team.team_members) ? team.team_members : [];
     team.trusted_sources = Array.isArray(team.trusted_sources) ? team.trusted_sources : [];
-    team.data_confidence =
-      typeof team.data_confidence === 'number' ? team.data_confidence : null;
+
+    const rawConfidence =
+      team.data_confidence ??
+      scoring.data_confidence ??
+      scoring.confidence_level ??
+      scoring.confidence;
+    team.data_confidence = this.normalizeConfidenceLevel(rawConfidence);
+    team.confidence_justification =
+      typeof team.confidence_justification === 'string'
+        ? team.confidence_justification.trim()
+        : (
+          typeof scoring.confidence_justification === 'string'
+            ? scoring.confidence_justification.trim()
+            : ''
+        );
 
     team.team_members = team.team_members.map(member => ({
       name: member?.name || 'Unknown',
@@ -204,6 +217,7 @@ const TeamAPI = {
       ventureName: team.venture_name || '-',
       justification: scoring.score_justification || '',
       confidence: team.data_confidence,
+      confidenceJustification: team.confidence_justification || '',
       teamComposition: {
         total: scoring.team_composition.total_members || team.team_members.length,
         technical: scoring.team_composition.technical_experts || 0,
@@ -236,6 +250,43 @@ const TeamAPI = {
     };
 
     return rubric[score] || 'No rubric description available';
+  },
+
+  /**
+   * Normalize API confidence values to Low/Medium/High labels
+   */
+  normalizeConfidenceLevel(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const normalized = trimmed.toLowerCase();
+      const map = {
+        low: 'Low',
+        medium: 'Medium',
+        mid: 'Medium',
+        high: 'High'
+      };
+
+      return map[normalized] || trimmed;
+    }
+
+    if (typeof value === 'number' && !isNaN(value)) {
+      if (value >= 0.66) return 'High';
+      if (value >= 0.33) return 'Medium';
+      return 'Low';
+    }
+
+    if (typeof value === 'object') {
+      return this.normalizeConfidenceLevel(
+        value.level || value.value || value.label || value.text
+      );
+    }
+
+    return String(value);
   }
 };
 

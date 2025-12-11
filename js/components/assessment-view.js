@@ -369,9 +369,10 @@ class AssessmentView {
 
     const composition = data.teamComposition || {};
     const members = Array.isArray(data.members) ? data.members : [];
-    const confidence = (typeof data.confidence === 'number' && !isNaN(data.confidence))
-      ? Formatters.confidence(data.confidence)
-      : 'Not available';
+    const confidenceLabel = Formatters.confidence(data.confidence);
+    const confidenceDisplay = Formatters.escapeHTML(confidenceLabel);
+    const confidenceJustification = sanitizeText(data.confidenceJustification || '');
+    const hasConfidenceJustification = Boolean(confidenceJustification);
 
     const renderList = (items, formatter, emptyLabel) => {
       if (!Array.isArray(items) || items.length === 0) {
@@ -528,12 +529,9 @@ class AssessmentView {
             <div class="metric-value">${composition.total ?? members.length ?? '-'}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Technical Experts</div>
-            <div class="metric-value">${composition.technical ?? 0}</div>
-          </div>
-          <div class="metric-card">
             <div class="metric-label">Confidence</div>
-            <div class="metric-value">${confidence}</div>
+            <div class="metric-value">${confidenceDisplay}</div>
+            ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
           </div>
         </div>
 
@@ -561,6 +559,11 @@ class AssessmentView {
 
     const detailedHTML = `
       <div class="evidence-detailed">
+        <div class="content-section">
+          <h4>Data Confidence</h4>
+          <p><strong>Level:</strong> ${confidenceDisplay}</p>
+          ${hasConfidenceJustification ? `<p>${confidenceJustification}</p>` : '<p>No additional confidence context provided.</p>'}
+        </div>
         <div class="content-section">
           <h4>Relevant Experience Highlights</h4>
           <ul>${Formatters.listToHTML(data.experiences || [], 6)}</ul>
@@ -679,9 +682,10 @@ class AssessmentView {
       return Formatters.escapeHTML(normalized);
     };
 
-    const confidence = (typeof data.confidence === 'number' && !isNaN(data.confidence))
-      ? Formatters.confidence(data.confidence)
-      : 'Not available';
+    const confidenceLabel = Formatters.confidence(data.confidence);
+    const confidenceDisplay = Formatters.escapeHTML(confidenceLabel);
+    const confidenceJustification = sanitizeText(data.confidenceJustification || '');
+    const hasConfidenceJustification = Boolean(confidenceJustification);
     const priorFunding = data.hasPriorFunding ? 'Yes' : 'No';
     const fundingRounds = Array.isArray(data.fundingRounds) ? data.fundingRounds : [];
     const peerDeals = Array.isArray(data.peerDeals) ? data.peerDeals : [];
@@ -793,7 +797,8 @@ class AssessmentView {
           </div>
           <div class="metric-card">
             <div class="metric-label">Confidence</div>
-            <div class="metric-value">${confidence}</div>
+            <div class="metric-value">${confidenceDisplay}</div>
+            ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
           </div>
         </div>
 
@@ -802,11 +807,22 @@ class AssessmentView {
           <p>${sanitizeText(data.summary || 'No justification provided.', 'No justification provided.')}</p>
         </div>
 
+        <div class="content-section">
+          <h4>Data Confidence</h4>
+          <p><strong>Level:</strong> ${confidenceDisplay}</p>
+          <p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
+        </div>
+
       </div>
     `;
 
     const detailedHTML = `
       <div class="evidence-detailed">
+        <div class="content-section">
+          <h4>Data Confidence</h4>
+          <p><strong>Level:</strong> ${confidenceDisplay}</p>
+          <p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
+        </div>
         <div class="content-section">
           <h4>Venture Funding Rounds</h4>
           ${roundsHTML}

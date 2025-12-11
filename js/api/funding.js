@@ -150,12 +150,20 @@ const FundingAPI = {
       ? analysis.market_deals
       : [];
 
-    if (typeof analysis.data_confidence !== 'number' || isNaN(analysis.data_confidence)) {
-      analysis.data_confidence = null;
-    } else {
-      // Clamp confidence to [0,1]
-      analysis.data_confidence = Math.max(0, Math.min(1, analysis.data_confidence));
-    }
+    const rawConfidence =
+      analysis.data_confidence ??
+      assessment.data_confidence ??
+      assessment.confidence_level ??
+      assessment.confidence;
+    analysis.data_confidence = this.normalizeConfidenceLevel(rawConfidence);
+    analysis.confidence_justification =
+      typeof analysis.confidence_justification === 'string'
+        ? analysis.confidence_justification.trim()
+        : (
+          typeof assessment.confidence_justification === 'string'
+            ? assessment.confidence_justification.trim()
+            : ''
+        );
 
     assessment.score_justification = assessment.score_justification || {};
     assessment.score_justification.funding_details =
@@ -169,6 +177,7 @@ const FundingAPI = {
    */
   formatForDisplay(analysis, assessment) {
     const confidence = analysis.data_confidence;
+    const confidenceJustification = analysis.confidence_justification || '';
     const justification = assessment.score_justification || {};
 
     const fundingRounds = analysis.venture_funding.funding_rounds.map(round => ({
@@ -204,10 +213,7 @@ const FundingAPI = {
       rubricLevel: justification.rubric_level || '',
       summary: justification.evidence_summary || '',
       confidence,
-      confidenceLabel:
-        typeof confidence === 'number'
-          ? `${Math.round(confidence * 100)}%`
-          : null,
+      confidenceJustification,
       researchTopic: analysis.research_topic || '',
       applicationArea: analysis.application_area || '',
       searchDate: analysis.search_date || null,
@@ -239,6 +245,45 @@ const FundingAPI = {
     };
 
     return rubric[score] || 'No rubric description available';
+  },
+
+  /**
+   * Normalize API confidence to Low/Medium/High labels
+   */
+  normalizeConfidenceLevel(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const normalized = trimmed.toLowerCase();
+      const mapping = {
+        low: 'Low',
+        medium: 'Medium',
+        mid: 'Medium',
+        med: 'Medium',
+        high: 'High'
+      };
+
+      return mapping[normalized] || trimmed;
+    }
+
+    if (typeof value === 'number' && !isNaN(value)) {
+      const normalized = Math.max(0, Math.min(1, value <= 1 ? value : value / 100));
+      if (normalized >= 0.66) return 'High';
+      if (normalized >= 0.33) return 'Medium';
+      return 'Low';
+    }
+
+    if (typeof value === 'object') {
+      return this.normalizeConfidenceLevel(
+        value.level || value.value || value.label || value.text
+      );
+    }
+
+    return String(value);
   }
 };
 
