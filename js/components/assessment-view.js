@@ -1164,6 +1164,9 @@ class AssessmentView {
 	  const container = this.elements.competitive.evidence;
 	  if (!container) return;
 	  
+	  const confidenceLabel = Formatters.confidence(data.confidence);
+	  const confidenceJustification = Formatters.escapeHTML((data.confidenceJustification || '').trim());
+	  const hasConfidenceJustification = Boolean(confidenceJustification);
 	  const summaryHTML = `
 		<div class="evidence-summary">
 		  <div class="metrics-row">
@@ -1181,13 +1184,20 @@ class AssessmentView {
 			</div>
 			<div class="metric-card">
 			  <div class="metric-label">Confidence</div>
-			  <div class="metric-value">${Formatters.confidence(data.confidence)}</div>
+			  <div class="metric-value">${confidenceLabel}</div>
+			  ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
 			</div>
 		  </div>
 		  
 		  <div class="content-section">
 			<h4>AI Assessment Rationale</h4>
 			<p>${Formatters.escapeHTML(data.justification)}</p>
+		  </div>
+
+		  <div class="content-section">
+			<h4>Data Confidence</h4>
+			<p><strong>Level:</strong> ${confidenceLabel}</p>
+			<p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
 		  </div>
 		  
 		  <div class="content-section risk-section">
@@ -1204,6 +1214,11 @@ class AssessmentView {
 	  
 	  const detailedHTML = `
 		<div class="evidence-detailed">
+		  <div class="content-section">
+			<h4>Data Confidence</h4>
+			<p><strong>Level:</strong> ${confidenceLabel}</p>
+			<p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
+		  </div>
 		  <div class="content-section">
 			<h4>Competitor Breakdown</h4>
 			<p>${Formatters.competitorBreakdown(data.competitorCount)}</p>
@@ -1234,10 +1249,11 @@ class AssessmentView {
 		  <div class="content-section">
 			<h4>Data Quality</h4>
 			<div class="metrics-row">
-			  <div class="metric-card">
-				<div class="metric-label">Confidence Level</div>
-				<div class="metric-value">${Formatters.confidence(data.confidence)}</div>
-			  </div>
+				<div class="metric-card">
+				  <div class="metric-label">Confidence Level</div>
+				  <div class="metric-value">${confidenceLabel}</div>
+				  ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
+				</div>
 			  <div class="metric-card">
 				<div class="metric-label">Data Date</div>
 				<div class="metric-value">${Formatters.date(data.dataDate)}</div>

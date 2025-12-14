@@ -462,6 +462,10 @@ const ExportUtility = {
 
     addHeading('Key Metrics');
     const competitive = data.competitive?.formatted || {};
+    const competitiveConfidence = Formatters.confidence(competitive.confidence);
+    const competitiveConfidenceNote = competitive.confidenceJustification
+      ? TextSanitizer.clean(competitive.confidenceJustification)
+      : '';
     const funding = data.funding?.formatted || {};
     const market = data.market?.formatted || {};
     const primaryMarket = market.primaryMarket || {};
@@ -481,7 +485,9 @@ const ExportUtility = {
         items: [
           `Total Competitors: ${competitive.totalCompetitors ?? '-'}`,
           `Competitive Intensity: ${Formatters.competitiveIntensity(competitive.competitiveIntensity)}`,
-          `Market Leaders: ${(competitive.marketLeaders || []).length}`
+          `Market Leaders: ${(competitive.marketLeaders || []).length}`,
+          `Data Confidence: ${competitiveConfidence}`,
+          ...(competitiveConfidenceNote ? [`Confidence Rationale: ${competitiveConfidenceNote}`] : [])
         ]
       },
       {
@@ -909,6 +915,12 @@ const ExportUtility = {
       afterItem: 1
     };
 
+    const formatted = data.competitive.formatted || {};
+    const confidenceLevel = Formatters.confidence(formatted.confidence);
+    const confidenceNote = formatted.confidenceJustification
+      ? TextSanitizer.clean(formatted.confidenceJustification)
+      : '';
+
     PdfTypography.sectionTitle(doc);
     doc.text('Competitive Risk Assessment', PdfLayout.marginLeft, y);
     y += 15;
@@ -948,6 +960,27 @@ const ExportUtility = {
       { maxWidth: contentWidth }
     );
     y += 8;
+
+    const confidenceBullets = [
+      `Confidence Level: ${confidenceLevel}`
+    ];
+    if (confidenceNote) {
+      confidenceBullets.push(`Rationale: ${confidenceNote}`);
+    }
+
+    y = PdfLayout.ensureSpace(doc, y, 25);
+    doc.setFont(undefined, 'bold');
+    doc.text('Data Confidence', PdfLayout.marginLeft, y);
+    y += 8;
+    doc.setFont(undefined, 'normal');
+    y = PdfLayout.drawBulletList(
+      doc,
+      confidenceBullets,
+      PdfLayout.marginLeft,
+      y,
+      bulletOptions
+    );
+    y += 4;
 
     const risks = data.competitive.assessment.key_risk_factors || [];
     if (risks.length > 0) {
@@ -1515,10 +1548,18 @@ const ExportUtility = {
   PdfTypography.body(doc);
 
   // Add summary details first
+  const formatted = competitive.formatted || {};
+  const confidenceLevel = formatted.confidence
+    ? Formatters.confidence(formatted.confidence)
+    : (competitive.analysis.data_confidence || 'Not available');
+  const confidenceNote = formatted.confidenceJustification
+    ? TextSanitizer.clean(formatted.confidenceJustification)
+    : (competitive.analysis.confidence_justification || '');
   const details = [
     `Total Competitors: ${competitive.assessment.competitor_count.total}`,
     `Competitive Intensity: ${competitive.assessment.competitive_intensity}`,
-    `Confidence Level: ${competitive.analysis.data_quality?.confidence_level || 'N/A'}`,
+    `Confidence Level: ${confidenceLevel}`,
+    ...(confidenceNote ? [`Confidence Rationale: ${confidenceNote}`] : []),
     '',
     'Market Leaders:',
     ...competitive.assessment.market_leaders.slice(0, 5).map(leader => `  - ${leader}`),

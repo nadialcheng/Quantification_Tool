@@ -138,17 +138,37 @@ const CompetitiveAPI = {
     if (!analysis.market_overview) analysis.market_overview = {};
     if (!analysis.competitors) analysis.competitors = [];
     if (!analysis.competitive_analysis) analysis.competitive_analysis = {};
-    if (!analysis.data_quality) {
-      analysis.data_quality = {};
-    } else {
-      const confidence =
-        analysis.data_quality.overall_confidence ??
-        analysis.data_quality.confidence ??
-        analysis.data_quality.confidence_level;
-      if (confidence !== undefined) {
-        analysis.data_quality.overall_confidence = Number(confidence);
-      }
+    analysis.data_quality = analysis.data_quality || {};
+    if (!Array.isArray(analysis.data_quality.sources_used)) {
+      analysis.data_quality.sources_used = analysis.data_quality.sources_used
+        ? [analysis.data_quality.sources_used].flat().filter(Boolean)
+        : [];
     }
+    if (!Array.isArray(analysis.data_quality.data_concerns)) {
+      analysis.data_quality.data_concerns = analysis.data_quality.data_concerns
+        ? [analysis.data_quality.data_concerns].flat().filter(Boolean)
+        : [];
+    }
+
+    const rawConfidence =
+      analysis.data_confidence ??
+      analysis.data_quality.data_confidence ??
+      analysis.data_quality.overall_confidence ??
+      analysis.data_quality.confidence ??
+      analysis.data_quality.confidence_level ??
+      assessment.data_confidence ??
+      assessment.confidence_level ??
+      assessment.confidence;
+    analysis.data_confidence = this.normalizeConfidenceLevel(rawConfidence);
+
+    const confidenceJustification =
+      analysis.confidence_justification ??
+      analysis.data_quality.confidence_justification ??
+      assessment.confidence_justification;
+    analysis.confidence_justification =
+      typeof confidenceJustification === 'string'
+        ? confidenceJustification.trim()
+        : '';
 
     // Normalize market overview totals
     if (!analysis.market_overview) {
@@ -260,6 +280,18 @@ const CompetitiveAPI = {
       ...(totals || {})
     };
 
+    const confidence = analysis.data_confidence;
+    const confidenceJustification =
+      analysis.confidence_justification ||
+      analysis.data_quality?.confidence_justification ||
+      '';
+    const dataDate = analysis.data_quality?.data_date || new Date().toISOString();
+    const dataConcerns = analysis.data_quality?.data_concerns || [];
+    const dataRecency =
+      analysis.data_quality?.data_recency ||
+      analysis.data_quality?.data_date ||
+      '';
+
     // Build formatted response
     return {
       // Score and justification
@@ -297,14 +329,51 @@ const CompetitiveAPI = {
       marketGaps: analysis.competitive_analysis?.market_gaps || [],
       
       // Data quality
-      confidence:
-        analysis.data_quality?.overall_confidence ??
-        analysis.data_quality?.confidence ??
-        analysis.data_quality?.confidence_level ??
-        0.7,
-      dataDate: analysis.data_quality?.data_date || new Date().toISOString(),
+      confidence,
+      confidenceJustification,
+      dataDate,
+      dataConcerns,
+      dataRecency,
       sources: analysis.data_quality?.sources_used || []
     };
+  },
+
+  /**
+   * Normalize API confidence outputs to Low/Medium/High labels
+   */
+  normalizeConfidenceLevel(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const normalized = trimmed.toLowerCase();
+      const map = {
+        low: 'Low',
+        medium: 'Medium',
+        mid: 'Medium',
+        med: 'Medium',
+        high: 'High'
+      };
+      return map[normalized] || trimmed;
+    }
+
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      const normalized = Math.max(0, Math.min(1, value <= 1 ? value : value / 100));
+      if (normalized >= 0.66) return 'High';
+      if (normalized >= 0.33) return 'Medium';
+      return 'Low';
+    }
+
+    if (typeof value === 'object') {
+      return this.normalizeConfidenceLevel(
+        value.level || value.value || value.label || value.text
+      );
+    }
+
+    return String(value);
   },
 
   /**
