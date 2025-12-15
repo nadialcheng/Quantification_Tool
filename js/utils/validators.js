@@ -109,9 +109,44 @@ const Validators = {
       return { valid: false, error: `Invalid market score: ${scoring.score}` };
     }
 
-    // Validate confidence
-    if (typeof scoring.confidence !== 'number' || scoring.confidence < 0 || scoring.confidence > 1) {
-      return { valid: false, error: 'Invalid confidence value' };
+    // Validate optional legacy confidence
+    if (scoring.confidence !== undefined && scoring.confidence !== null) {
+      if (typeof scoring.confidence !== 'number' || scoring.confidence < 0 || scoring.confidence > 1) {
+        return { valid: false, error: 'Invalid confidence value' };
+      }
+    }
+
+    if (!scoring.data_quality || typeof scoring.data_quality !== 'object') {
+      return { valid: false, error: 'Missing data quality metadata' };
+    }
+
+    const dataQuality = scoring.data_quality;
+
+    if (typeof dataQuality.overall_confidence !== 'string' || !dataQuality.overall_confidence.trim()) {
+      return { valid: false, error: 'Missing data quality confidence level' };
+    }
+
+    if (typeof dataQuality.confidence_justification !== 'string' || !dataQuality.confidence_justification.trim()) {
+      return { valid: false, error: 'Missing data quality confidence justification' };
+    }
+
+    if (typeof dataQuality.data_date !== 'string' || !/^\d{4}-\d{2}$/.test(dataQuality.data_date.trim())) {
+      return { valid: false, error: 'Data quality date must be in YYYY-MM format' };
+    }
+
+    if (!Array.isArray(dataQuality.sources_used)) {
+      return { valid: false, error: 'Data quality sources must be an array' };
+    }
+
+    if (dataQuality.sources_used.length === 0) {
+      return { valid: false, error: 'Data quality must include at least one source' };
+    }
+
+    const invalidSource = dataQuality.sources_used.some(
+      source => typeof source !== 'string' || !source.trim()
+    );
+    if (invalidSource) {
+      return { valid: false, error: 'Data quality sources must be non-empty strings' };
     }
 
     return { valid: true };

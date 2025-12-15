@@ -282,8 +282,7 @@ const MarketAPI = {
     // Ensure scoring structure
     if (!scoring.rubric_application) scoring.rubric_application = {};
     if (!scoring.justification) scoring.justification = {};
-    if (!scoring.data_quality) scoring.data_quality = {};
-    if (scoring.confidence === undefined) scoring.confidence = 0.7;
+    scoring.data_quality = this.normalizeDataQuality(scoring.data_quality, scoring, analysis);
   },
 
   /**
@@ -305,7 +304,8 @@ const MarketAPI = {
     return {
       // Score and confidence
       score: scoring.score,
-      confidence: scoring.confidence,
+      confidence: scoring.data_quality.overall_confidence || scoring.confidence,
+      confidenceJustification: scoring.data_quality.confidence_justification || '',
       
       // Primary market
       primaryMarket: {
@@ -349,9 +349,126 @@ const MarketAPI = {
       },
       
       // Data quality
-      dataRecency: scoring.data_quality.data_recency || 'Unknown',
-      dataConcerns: scoring.data_quality.data_concerns || []
+      dataDate: scoring.data_quality.data_date || '',
+      dataSources: scoring.data_quality.sources_used || []
     };
+  },
+
+  /**
+   * Normalize data quality metadata
+   */
+  normalizeDataQuality(rawQuality, scoring, analysis) {
+    const now = new Date();
+    const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const normalizeArrayOfStrings = (value) => {
+      if (!value) return [];
+      const array = Array.isArray(value) ? value : [value];
+      return array
+        .map(item => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean);
+    };
+
+    const dataQuality = typeof rawQuality === 'object' && rawQuality !== null
+      ? { ...rawQuality }
+      : {};
+
+    const fallbackConfidence =
+      dataQuality.overall_confidence ??
+      scoring?.confidence ??
+      scoring?.confidence_level ??
+      scoring?.rubric_application?.confidence ??
+      null;
+
+    dataQuality.overall_confidence =
+      this.normalizeConfidenceLabel(dataQuality.overall_confidence ?? fallbackConfidence) || 'Medium';
+
+    if (typeof dataQuality.confidence_justification !== 'string') {
+      dataQuality.confidence_justification =
+        typeof scoring?.confidence_justification === 'string'
+          ? scoring.confidence_justification.trim()
+          : typeof scoring?.justification?.confidence_context === 'string'
+            ? scoring.justification.confidence_context.trim()
+            : '';
+    } else {
+      dataQuality.confidence_justification = dataQuality.confidence_justification.trim();
+    }
+    if (!dataQuality.confidence_justification) {
+      dataQuality.confidence_justification = 'Confidence rationale not provided.';
+    }
+
+    if (typeof dataQuality.data_date !== 'string' || !/^\d{4}-\d{2}$/.test(dataQuality.data_date.trim())) {
+      dataQuality.data_date = defaultMonth;
+    } else {
+      dataQuality.data_date = dataQuality.data_date.trim();
+    }
+
+    dataQuality.sources_used = normalizeArrayOfStrings(dataQuality.sources_used);
+    if (dataQuality.sources_used.length === 0) {
+      const inferredSources = this.extractMarketSources(analysis);
+      dataQuality.sources_used = inferredSources.length > 0 ? inferredSources : ['Source not provided'];
+    }
+
+    return dataQuality;
+  },
+
+  /**
+   * Normalize API confidence outputs to Low/Medium/High labels
+   */
+  normalizeConfidenceLabel(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const normalized = trimmed.toLowerCase();
+      const map = {
+        low: 'Low',
+        medium: 'Medium',
+        mid: 'Medium',
+        med: 'Medium',
+        high: 'High',
+        'very low': 'Very Low',
+        'very high': 'Very High'
+      };
+      return map[normalized] || trimmed;
+    }
+
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      const normalized = Math.max(0, Math.min(1, value <= 1 ? value : value / 100));
+      if (normalized >= 0.8) return 'High';
+      if (normalized >= 0.4) return 'Medium';
+      return 'Low';
+    }
+
+    if (typeof value === 'object') {
+      return this.normalizeConfidenceLabel(
+        value.level || value.value || value.label || value.text
+      );
+    }
+
+    return String(value);
+  },
+
+  /**
+   * Extract unique market sources for fallback data quality info
+   */
+  extractMarketSources(analysis) {
+    if (!analysis || !Array.isArray(analysis.markets)) {
+      return [];
+    }
+
+    const unique = new Set();
+    analysis.markets.forEach(market => {
+      const source = typeof market.source_url === 'string' ? market.source_url.trim() : '';
+      if (source) {
+        unique.add(source);
+      }
+    });
+
+    return Array.from(unique).slice(0, 5);
   },
 
   /**

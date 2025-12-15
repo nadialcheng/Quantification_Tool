@@ -1276,6 +1276,10 @@ class AssessmentView {
 	  const container = this.elements.market.evidence;
 	  if (!container) return;
 	  
+	  const confidenceLabel = Formatters.confidence(data.confidence);
+	  const confidenceJustification = Formatters.escapeHTML((data.confidenceJustification || '').trim());
+	  const hasConfidenceJustification = Boolean(confidenceJustification);
+
 	  const summaryHTML = `
 		<div class="evidence-summary">
 		  <div class="metrics-row">
@@ -1293,7 +1297,8 @@ class AssessmentView {
 			</div>
 			<div class="metric-card">
 			  <div class="metric-label">Confidence</div>
-			  <div class="metric-value">${Formatters.confidence(data.confidence)}</div>
+			  <div class="metric-value">${confidenceLabel}</div>
+			  ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
 			</div>
 		  </div>
 		  
@@ -1355,19 +1360,10 @@ class AssessmentView {
 			<div class="metrics-row">
 			  <div class="metric-card">
 				<div class="metric-label">Overall Confidence</div>
-				<div class="metric-value">${Formatters.confidence(data.confidence)}</div>
-			  </div>
-			  <div class="metric-card">
-				<div class="metric-label">Data Recency</div>
-				<div class="metric-value">${data.dataRecency || 'Unknown'}</div>
+				<div class="metric-value">${confidenceLabel}</div>
+				${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
 			  </div>
 			</div>
-			${data.dataConcerns && data.dataConcerns.length > 0 ? `
-			  <div class="data-concerns">
-				<h5>Data Concerns:</h5>
-				<ul>${Formatters.listToHTML(data.dataConcerns)}</ul>
-			  </div>
-			` : ''}
 		  </div>
 		</div>
 	  `;
