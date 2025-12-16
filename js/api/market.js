@@ -369,9 +369,16 @@ const MarketAPI = {
         .filter(Boolean);
     };
 
-    const dataQuality = typeof rawQuality === 'object' && rawQuality !== null
-      ? { ...rawQuality }
-      : {};
+    const analysisQuality =
+      analysis && typeof analysis.data_quality === 'object' && analysis.data_quality !== null
+        ? { ...analysis.data_quality }
+        : {};
+    const providedQuality =
+      rawQuality && typeof rawQuality === 'object'
+        ? { ...rawQuality }
+        : {};
+
+    const dataQuality = { ...analysisQuality, ...providedQuality };
 
     const fallbackConfidence =
       dataQuality.overall_confidence ??

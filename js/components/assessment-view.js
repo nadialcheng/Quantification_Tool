@@ -560,11 +560,6 @@ class AssessmentView {
     const detailedHTML = `
       <div class="evidence-detailed">
         <div class="content-section">
-          <h4>Data Confidence</h4>
-          <p><strong>Level:</strong> ${confidenceDisplay}</p>
-          ${hasConfidenceJustification ? `<p>${confidenceJustification}</p>` : '<p>No additional confidence context provided.</p>'}
-        </div>
-        <div class="content-section">
           <h4>Relevant Experience Highlights</h4>
           <ul>${Formatters.listToHTML(data.experiences || [], 6)}</ul>
         </div>
@@ -818,11 +813,6 @@ class AssessmentView {
 
     const detailedHTML = `
       <div class="evidence-detailed">
-        <div class="content-section">
-          <h4>Data Confidence</h4>
-          <p><strong>Level:</strong> ${confidenceDisplay}</p>
-          <p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
-        </div>
         <div class="content-section">
           <h4>Venture Funding Rounds</h4>
           ${roundsHTML}
@@ -1214,11 +1204,6 @@ class AssessmentView {
 	  
 	  const detailedHTML = `
 		<div class="evidence-detailed">
-		  <div class="content-section">
-			<h4>Data Confidence</h4>
-			<p><strong>Level:</strong> ${confidenceLabel}</p>
-			<p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
-		  </div>
 		  <div class="content-section">
 			<h4>Competitor Breakdown</h4>
 			<p>${Formatters.competitorBreakdown(data.competitorCount)}</p>
