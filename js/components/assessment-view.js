@@ -1178,12 +1178,6 @@ class AssessmentView {
 			<p>${Formatters.escapeHTML(data.justification)}</p>
 		  </div>
 
-		  <div class="content-section">
-			<h4>Data Confidence</h4>
-			<p><strong>Level:</strong> ${confidenceLabel}</p>
-			<p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
-		  </div>
-		  
 		  <div class="content-section risk-section">
 			<h4>Key Risks</h4>
 			<ul>${Formatters.listToHTML(data.keyRisks, 5)}</ul>
