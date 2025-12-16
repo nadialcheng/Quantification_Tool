@@ -802,12 +802,6 @@ class AssessmentView {
           <p>${sanitizeText(data.summary || 'No justification provided.', 'No justification provided.')}</p>
         </div>
 
-        <div class="content-section">
-          <h4>Data Confidence</h4>
-          <p><strong>Level:</strong> ${confidenceDisplay}</p>
-          <p>${hasConfidenceJustification ? confidenceJustification : 'No additional confidence context provided.'}</p>
-        </div>
-
       </div>
     `;
 
