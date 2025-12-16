@@ -952,9 +952,9 @@ class AssessmentView {
     if (!container) return;
 
     const riskLevel = data.riskLevel ? Formatters.titleCase(data.riskLevel) : 'Unknown';
-    const dataConfidence = (typeof data.dataConfidence === 'number' && !isNaN(data.dataConfidence))
-      ? Formatters.confidence(data.dataConfidence)
-      : 'Not available';
+    const dataConfidence = Formatters.confidence(data.dataConfidence);
+    const confidenceJustification = Formatters.escapeHTML((data.dataConfidenceJustification || '').trim());
+    const hasConfidenceJustification = Boolean(confidenceJustification);
     const companyDescription = data.companyIP?.description
       ? Formatters.escapeHTML(data.companyIP.description)
       : 'No company IP summary available.';
@@ -1042,6 +1042,7 @@ class AssessmentView {
           <div class="metric-card">
             <div class="metric-label">Data Confidence</div>
             <div class="metric-value">${dataConfidence}</div>
+            ${hasConfidenceJustification ? `<div class="metric-note">${confidenceJustification}</div>` : ''}
           </div>
         </div>
 

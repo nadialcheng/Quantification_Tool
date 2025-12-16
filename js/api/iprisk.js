@@ -364,6 +364,13 @@ const IPRiskAPI = {
     if (report.data_confidence !== undefined && report.dataConfidence === undefined) {
       report.dataConfidence = report.data_confidence;
     }
+
+    if (report.data_quality && typeof report.data_quality === 'object') {
+      report.dataQuality = {
+        ...(report.data_quality || {}),
+        ...(report.dataQuality || {})
+      };
+    }
   },
 
   /**
@@ -372,6 +379,16 @@ const IPRiskAPI = {
   formatForDisplay(report, score) {
     const summary = report.ipRiskSummary;
     const table = report.patentTable;
+    const dataQuality = report.dataQuality || report.data_quality || {};
+    const confidenceValue =
+      dataQuality.overall_confidence ??
+      report.dataConfidence ??
+      report.data_confidence ??
+      null;
+    const confidenceJustification =
+      typeof dataQuality.confidence_justification === 'string'
+        ? dataQuality.confidence_justification.trim()
+        : '';
 
     return {
       score,
@@ -393,7 +410,8 @@ const IPRiskAPI = {
       })),
       awardedPatents: table.awardedPatents,
       pendingPatents: table.patentApplications,
-      dataConfidence: report.dataConfidence
+      dataConfidence: confidenceValue,
+      dataConfidenceJustification: confidenceJustification
     };
   },
 
